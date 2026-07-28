@@ -16,6 +16,8 @@ prova; o núcleo em `production/` é o caminho técnico para WhatsApp.
 
 As referências técnicas ficam ocultas ao cliente por padrão, para a conversa
 soar natural. Em uma validação interna, defina `SHOW_SOURCES=true` no `.env`.
+O bot cumprimenta na abertura, mas começa diretamente pela informação quando
+recebe uma pergunta de conteúdo.
 
 ## Perguntas sugeridas
 

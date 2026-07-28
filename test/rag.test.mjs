@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { answer, buildIndex, search } from '../src/rag.mjs';
+import { answer, buildIndex, removeOpeningGreeting, search } from '../src/rag.mjs';
 
 const cases = [
   ['Como a capina elétrica funciona?', 'FAQ-018'],
@@ -51,4 +51,11 @@ test('recusa tentativas de mudar as instruções', async () => {
   assert.equal(result.confident, false);
   assert.equal(result.sources.length, 0);
   assert.match(result.answer, /tecnologia Electroherb/i);
+});
+
+test('remove saudação repetida gerada antes da resposta', () => {
+  assert.equal(
+    removeOpeningGreeting('Olá! É um prazer falar com você.\n\nA Zasso atua internacionalmente.'),
+    'A Zasso atua internacionalmente.',
+  );
 });
