@@ -109,7 +109,7 @@ function tokenize(text) {
   )];
 }
 
-function expandPortugueseQuery(question) {
+function portugueseQueryExpansions(question) {
   const normalizedQuestion = question
     .normalize('NFD')
     .replace(/\p{Diacritic}/gu, '')
@@ -117,7 +117,11 @@ function expandPortugueseQuery(question) {
   const expansions = Object.entries(portugueseGlossary)
     .filter(([term]) => normalizedQuestion.includes(term.normalize('NFD').replace(/\p{Diacritic}/gu, '')))
     .flatMap(([, equivalents]) => equivalents);
-  return [question, ...new Set(expansions)].join(' ');
+  return [...new Set(expansions)];
+}
+
+function expandPortugueseQuery(question) {
+  return [question, ...portugueseQueryExpansions(question)].join(' ');
 }
 
 function lexicalScore(question, chunk) {
@@ -127,6 +131,9 @@ function lexicalScore(question, chunk) {
   const title = `${chunk.question} ${chunk.title}`.toLocaleLowerCase('pt-BR');
   const text = chunk.text.toLocaleLowerCase('pt-BR');
   let score = 0;
+  for (const phrase of portugueseQueryExpansions(question)) {
+    if (title.includes(phrase.toLocaleLowerCase('pt-BR'))) score += 6;
+  }
   for (const term of terms) {
     if (title.includes(term)) score += 3;
     else if (text.includes(term)) score += 1;
