@@ -32,8 +32,21 @@ function withinRateLimit(chatId) {
 
 function sourceList(sources) {
   if (!sources.length) return '';
-  return `\n\nFontes consultadas:\n${sources.map((source) => `• ${source.faqId}`).join('\n')}`;
+  return `\n\nBase consultada: ${sources.map((source) => source.faqId).join(', ')}`;
 }
+
+const welcomeText = `Olá! Sou o assistente de demonstração da Zasso. Posso responder com base nas FAQs comerciais aprovadas sobre a tecnologia Electroherb, aplicações, segurança e produtos.
+
+Experimente perguntar: “Como a capina elétrica funciona?”`;
+
+const examplesText = `Perguntas para testar:
+
+• O que é a Zasso?
+• Como a capina elétrica funciona?
+• Quais são os principais produtos da Zasso?
+• A tecnologia funciona em plantas adultas?
+• É perigoso trabalhar com alta tensão?
+• A Zasso afeta a biodiversidade?`;
 
 async function respond(message) {
   const chatId = message.chat.id;
@@ -48,8 +61,12 @@ async function respond(message) {
   if (text === '/start' || text === '/help') {
     await telegram('sendMessage', {
       chat_id: chatId,
-      text: 'Olá! Posso responder perguntas sobre a Zasso com base nas FAQs comerciais aprovadas. Faça uma pergunta como: “O que é a Zasso?”',
+      text: welcomeText,
     });
+    return;
+  }
+  if (text === '/examples') {
+    await telegram('sendMessage', { chat_id: chatId, text: examplesText });
     return;
   }
   if (!text) {
@@ -63,6 +80,7 @@ async function respond(message) {
   }
 
   try {
+    await telegram('sendChatAction', { chat_id: chatId, action: 'typing' });
     const result = await answer(text);
     await telegram('sendMessage', {
       chat_id: chatId,

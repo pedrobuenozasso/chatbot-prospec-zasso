@@ -265,6 +265,10 @@ function smallTalkResponse(question) {
     .replace(/[!?.,]+$/g, '')
     .trim();
   const smallTalk = new Set(['oi', 'ola', 'bom dia', 'boa tarde', 'boa noite', 'tudo bem', 'como ta', 'como esta', 'como vai', 'quem e voce', 'ajuda']);
+  const thanks = new Set(['obrigado', 'obrigada', 'valeu', 'muito obrigado', 'muito obrigada']);
+  if (thanks.has(normalized)) {
+    return 'De nada! Se quiser, posso ajudar com dúvidas sobre a Zasso, a tecnologia Electroherb, aplicações, segurança e capina elétrica.';
+  }
   if (!smallTalk.has(normalized)) return null;
   return 'Olá! Estou bem e posso ajudar com dúvidas sobre a Zasso, Electroherb, aplicações, segurança e capina elétrica. O que você gostaria de saber?';
 }
@@ -273,6 +277,21 @@ function truncateAnswer(text) {
   if (text.length <= config.maxAnswerChars) return text;
   const clipped = text.slice(0, config.maxAnswerChars);
   return `${clipped.replace(/\s+\S*$/, '').trim()}…`;
+}
+
+function selectEvidence(results) {
+  if (!results.length || results[0].score < config.minRetrievalScore) return [];
+
+  // Não misturar no prompt FAQs fracamente relacionadas só porque ficaram no
+  // top 4. Isso reduz respostas que parecem completas, mas usam evidência de
+  // assuntos diferentes.
+  const minimumRelatedScore = Math.max(config.minRetrievalScore, results[0].score * 0.55);
+  const selectedFaqs = new Set();
+  return results.filter((result) => {
+    if (result.score < minimumRelatedScore || selectedFaqs.has(result.faqId)) return false;
+    selectedFaqs.add(result.faqId);
+    return selectedFaqs.size <= 3;
+  });
 }
 
 export async function answer(question) {
@@ -302,20 +321,21 @@ export async function answer(question) {
   }
 
   const results = await search(cleanedQuestion);
-  if (!results.length || results[0].score < config.minRetrievalScore) {
+  const evidence = selectEvidence(results);
+  if (!evidence.length) {
     recordEvent('knowledge_gap', {
       questionFingerprint: questionFingerprint(cleanedQuestion),
       bestScore: Number((results[0]?.score || 0).toFixed(3)),
     });
     return {
-      answer: 'Não encontrei uma confirmação suficiente nas FAQs públicas da Zasso para responder com segurança. Posso encaminhar esta pergunta para a equipe.',
+      answer: 'Não encontrei uma confirmação suficiente nas FAQs públicas da Zasso para responder com segurança. Essa é uma pergunta que precisa ser confirmada pela equipe da Zasso.',
       sources: [],
       confident: false,
     };
   }
 
   let contextLength = 0;
-  const context = results
+  const context = evidence
     .map((result, index) => {
       const header = `[Fonte ${index + 1}: ${result.faqId} — ${result.question}]\n`;
       const remaining = config.maxContextChars - contextLength - header.length;
@@ -338,12 +358,12 @@ export async function answer(question) {
   recordEvent('grounded_response', {
     questionFingerprint: questionFingerprint(cleanedQuestion),
     bestScore: Number(results[0].score.toFixed(3)),
-    sources: [...new Set(results.map((result) => result.faqId))],
+    sources: [...new Set(evidence.map((result) => result.faqId))],
   });
 
   return {
     answer: truncateAnswer(responseText || 'Não foi possível gerar uma resposta agora.'),
-    sources: [...new Map(results.map((result) => [result.source, result])).values()].map((result) => ({
+    sources: [...new Map(evidence.map((result) => [result.source, result])).values()].map((result) => ({
       faqId: result.faqId,
       question: result.question,
       source: result.source,
