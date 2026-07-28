@@ -35,6 +35,7 @@ export const config = {
   maxQuestionChars: Number(process.env.MAX_QUESTION_CHARS || '800'),
   maxContextChars: Number(process.env.MAX_CONTEXT_CHARS || '12000'),
   maxAnswerChars: Number(process.env.MAX_ANSWER_CHARS || '1400'),
+  preferredAnswerChars: Number(process.env.PREFERRED_ANSWER_CHARS || '700'),
   telegramRateLimitMaxRequests: Number(process.env.TELEGRAM_RATE_LIMIT_MAX_REQUESTS || '8'),
   telegramRateLimitWindowMs: Number(process.env.TELEGRAM_RATE_LIMIT_WINDOW_MS || '60000'),
   showSources: (process.env.SHOW_SOURCES || 'false').toLocaleLowerCase() === 'true',

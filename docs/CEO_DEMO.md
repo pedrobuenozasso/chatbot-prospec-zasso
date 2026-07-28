@@ -18,6 +18,8 @@ As referências técnicas ficam ocultas ao cliente por padrão, para a conversa
 soar natural. Em uma validação interna, defina `SHOW_SOURCES=true` no `.env`.
 O bot cumprimenta na abertura, mas começa diretamente pela informação quando
 recebe uma pergunta de conteúdo.
+As respostas comerciais seguem o padrão de 2 a 3 frases curtas; a explicação
+técnica só se aprofunda quando a pessoa pede detalhes.
 
 ## Perguntas sugeridas
 

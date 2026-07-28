@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { answer, buildIndex, detectLanguage, removeOpeningGreeting, search } from '../src/rag.mjs';
+import { answer, buildIndex, detectLanguage, removeOpeningGreeting, search, truncateAnswer } from '../src/rag.mjs';
 
 const cases = [
   ['Como a capina elétrica funciona?', 'FAQ-018'],
@@ -67,4 +67,11 @@ test('remove saudação repetida gerada antes da resposta', () => {
     removeOpeningGreeting('Olá! É um prazer falar com você.\n\nA Zasso atua internacionalmente.'),
     'A Zasso atua internacionalmente.',
   );
+});
+
+test('encurta respostas longas preservando uma frase completa', () => {
+  const longAnswer = `${'A Zasso oferece uma solução prática para o controle de ervas daninhas. '.repeat(12)}Detalhes adicionais.`;
+  const result = truncateAnswer(longAnswer);
+  assert.ok(result.length <= 700);
+  assert.match(result, /\.$/);
 });
