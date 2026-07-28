@@ -32,6 +32,13 @@ test('acolhe uma saudação sem chamar o modelo', async () => {
   assert.match(result.answer, /Zasso/i);
 });
 
+test('entende uma saudação natural com pergunta de bem-estar', async () => {
+  const result = await answer('Olá, tudo bem?');
+  assert.equal(result.confident, true);
+  assert.equal(result.sources.length, 0);
+  assert.match(result.answer, /tudo bem por aqui/i);
+});
+
 test('não inventa resposta para uma pergunta sem evidência', async () => {
   const result = await answer('Qual é o preço do equipamento?');
   assert.equal(result.confident, false);

@@ -269,7 +269,8 @@ function smallTalkResponse(question) {
   if (thanks.has(normalized)) {
     return 'Por nada! Quando quiser, estou por aqui para ajudar com qualquer dúvida sobre a Zasso e a tecnologia Electroherb.';
   }
-  if (!smallTalk.has(normalized)) return null;
+  const greetingWithWellbeing = /^(oi|ola|bom dia|boa tarde|boa noite)[, ]+(tudo bem|como (voce )?(ta|esta|vai))$/.test(normalized);
+  if (!smallTalk.has(normalized) && !greetingWithWellbeing) return null;
   return 'Olá! Tudo bem por aqui. Posso te ajudar com dúvidas sobre a Zasso, a tecnologia Electroherb, aplicações e segurança. O que você gostaria de saber?';
 }
 
