@@ -1,7 +1,9 @@
 import { config } from './config.mjs';
+import { identifierFingerprint, recordEvent } from './observability.mjs';
 import { answer } from './rag.mjs';
 
 const telegramApi = `https://api.telegram.org/bot${config.telegramToken}`;
+const requestsByChat = new Map();
 
 async function telegram(method, body) {
   const response = await fetch(`${telegramApi}/${method}`, {
@@ -15,7 +17,17 @@ async function telegram(method, body) {
 }
 
 function canUse(chatId) {
-  return config.allowedChatIds.size === 0 || config.allowedChatIds.has(String(chatId));
+  return config.allowedChatIds.size > 0 && config.allowedChatIds.has(String(chatId));
+}
+
+function withinRateLimit(chatId) {
+  const now = Date.now();
+  const recentRequests = (requestsByChat.get(chatId) || [])
+    .filter((timestamp) => now - timestamp < config.telegramRateLimitWindowMs);
+  if (recentRequests.length >= config.telegramRateLimitMaxRequests) return false;
+  recentRequests.push(now);
+  requestsByChat.set(chatId, recentRequests);
+  return true;
 }
 
 function sourceList(sources) {
@@ -26,9 +38,10 @@ function sourceList(sources) {
 async function respond(message) {
   const chatId = message.chat.id;
   const text = message.text?.trim() || '';
-  console.log(`Mensagem recebida do chat ${chatId}.`);
+  console.log(`Mensagem recebida do chat ${identifierFingerprint(chatId)}.`);
   if (!canUse(chatId)) {
-    console.warn(`Acesso recusado ao chat ${chatId}. Inclua-o em TELEGRAM_ALLOWED_CHAT_IDS para liberar.`);
+    recordEvent('access_denied', { chatFingerprint: identifierFingerprint(chatId) });
+    console.warn(`Acesso recusado ao chat ${identifierFingerprint(chatId)}.`);
     return;
   }
 
@@ -39,7 +52,15 @@ async function respond(message) {
     });
     return;
   }
-  if (!text) return;
+  if (!text) {
+    await telegram('sendMessage', { chat_id: chatId, text: 'Por enquanto, consigo responder apenas mensagens de texto.' });
+    return;
+  }
+  if (!withinRateLimit(chatId)) {
+    recordEvent('rate_limited', { chatFingerprint: identifierFingerprint(chatId) });
+    await telegram('sendMessage', { chat_id: chatId, text: 'Recebi muitas mensagens em sequência. Aguarde um minuto e tente novamente.' });
+    return;
+  }
 
   try {
     const result = await answer(text);
@@ -58,6 +79,10 @@ async function respond(message) {
 
 if (!config.telegramToken) {
   console.error('TELEGRAM_BOT_TOKEN não configurado. Copie .env.example para .env e informe o token.');
+  process.exit(1);
+}
+if (config.allowedChatIds.size === 0) {
+  console.error('TELEGRAM_ALLOWED_CHAT_IDS não configurado. O bot não inicia sem uma lista explícita de chats autorizados.');
   process.exit(1);
 }
 

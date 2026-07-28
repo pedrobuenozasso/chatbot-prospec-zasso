@@ -32,6 +32,11 @@ export const config = {
   sacfAiTenantLabel: process.env.SACF_AI_TENANT_LABEL || 'Zasso',
   sacfAiPriority: Number(process.env.SACF_AI_PRIORITY || '3'),
   sacfAiJobTimeoutMs: Number(process.env.SACF_AI_JOB_TIMEOUT_MS || '90000'),
+  maxQuestionChars: Number(process.env.MAX_QUESTION_CHARS || '800'),
+  maxContextChars: Number(process.env.MAX_CONTEXT_CHARS || '12000'),
+  maxAnswerChars: Number(process.env.MAX_ANSWER_CHARS || '1400'),
+  telegramRateLimitMaxRequests: Number(process.env.TELEGRAM_RATE_LIMIT_MAX_REQUESTS || '8'),
+  telegramRateLimitWindowMs: Number(process.env.TELEGRAM_RATE_LIMIT_WINDOW_MS || '60000'),
   telegramToken: process.env.TELEGRAM_BOT_TOKEN || '',
   allowedChatIds: new Set(
     (process.env.TELEGRAM_ALLOWED_CHAT_IDS || '')

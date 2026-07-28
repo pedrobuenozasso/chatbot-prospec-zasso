@@ -42,6 +42,14 @@ No modo lexical, o arquivo `knowledge/query-glossary.pt-br.json` traduz termos c
 
 O conector por long polling já está incluído. Siga o [guia de configuração](docs/TELEGRAM_SETUP.md) quando recuperar o token.
 
+## Segurança
+
+Os guardrails e o checklist antes de abrir o bot além do piloto estão em [docs/SECURITY.md](docs/SECURITY.md). Para validar a recuperação das perguntas principais antes de uma demonstração:
+
+```bash
+npm test
+```
+
 ## Segredos
 
 O token do Telegram e configurações locais pertencem a `.env`, que nunca deve ser versionado.

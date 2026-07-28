@@ -1,3 +1,4 @@
 .env
 .index/
+.logs/
 node_modules/

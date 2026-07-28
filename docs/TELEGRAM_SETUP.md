@@ -25,17 +25,13 @@ SACF_AI_MODEL=qwen2.5:14b
 RAG_RETRIEVAL_MODE=lexical
 ```
 
-Para restringir o piloto ao seu chat, inicialmente configure um ID inválido e inicie o bot:
-
-```dotenv
-TELEGRAM_ALLOWED_CHAT_IDS=0
-```
-
-Envie `/start` para o bot. O terminal exibirá o ID real do seu chat e recusará o acesso. Pare o processo, substitua o `0` pelo ID exibido e inicie novamente:
+Para restringir o piloto ao seu chat, obtenha primeiro o seu ID com um bot de consulta de ID, como `@userinfobot`, e configure:
 
 ```dotenv
 TELEGRAM_ALLOWED_CHAT_IDS=seu_chat_id
 ```
+
+O bot não inicia se essa variável estiver vazia e não registra IDs reais no terminal.
 
 ## 3. Criar e testar o índice
 
