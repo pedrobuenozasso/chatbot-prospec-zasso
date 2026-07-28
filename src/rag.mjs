@@ -1,0 +1,274 @@
+import { mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { config, projectRoot } from './config.mjs';
+
+const SAFE_SECTIONS = new Set([
+  'Short Answer',
+  'Detailed Answer',
+  'What This Means for Customers',
+  'Safe Sales Wording',
+  'Caveats',
+]);
+const portugueseGlossary = JSON.parse(
+  readFileSync(join(projectRoot, 'knowledge/query-glossary.pt-br.json'), 'utf8'),
+);
+
+function markdownFiles(directory) {
+  return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
+    const fullPath = join(directory, entry.name);
+    if (entry.isDirectory()) return markdownFiles(fullPath);
+    return entry.isFile() && entry.name.endsWith('.md') ? [fullPath] : [];
+  });
+}
+
+function parseFrontmatter(markdown) {
+  const match = markdown.match(/^---\s*\n([\s\S]*?)\n---\s*\n([\s\S]*)$/);
+  if (!match) throw new Error('Documento sem frontmatter');
+
+  const metadata = Object.fromEntries(
+    match[1]
+      .split(/\r?\n/)
+      .map((line) => line.match(/^([^:]+):\s*(.*)$/))
+      .filter(Boolean)
+      .map(([, key, value]) => [key.trim(), value.trim().replace(/^"|"$/g, '')]),
+  );
+
+  return { metadata, body: match[2] };
+}
+
+function safeChunks(filePath) {
+  const { metadata, body } = parseFrontmatter(readFileSync(filePath, 'utf8'));
+  if (metadata.status !== 'Done' || metadata.audience !== 'Customer-facing') {
+    throw new Error(`Documento não aprovado: ${filePath}`);
+  }
+
+  const title = body.match(/^#\s+(.+)$/m)?.[1]?.trim() || metadata.question;
+  const sections = body
+    .split(/^##\s+/m)
+    .slice(1)
+    .map((part) => {
+      const [heading, ...content] = part.split(/\r?\n/);
+      return { heading: heading.trim(), content: content.join('\n').trim() };
+    });
+
+  return sections
+    .filter((section) => SAFE_SECTIONS.has(section.heading) && section.content)
+    .map((section) => ({
+      faqId: metadata.faq_id,
+      question: metadata.question,
+      title,
+      section: section.heading,
+      source: filePath.split('/').at(-1),
+      text: `FAQ: ${metadata.question}\nTítulo: ${title}\nSeção: ${section.heading}\n\n${section.content}`,
+    }));
+}
+
+async function ollama(path, body) {
+  const response = await fetch(`${config.ollamaBaseUrl}${path}`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  if (!response.ok) {
+    throw new Error(`Ollama retornou ${response.status}: ${await response.text()}`);
+  }
+  return response.json();
+}
+
+async function embed(texts) {
+  const response = await ollama('/api/embed', {
+    model: config.embeddingModel,
+    input: texts,
+  });
+  if (!Array.isArray(response.embeddings) || response.embeddings.length !== texts.length) {
+    throw new Error('Ollama não retornou embeddings compatíveis com os textos enviados.');
+  }
+  return response.embeddings;
+}
+
+function cosineSimilarity(left, right) {
+  let dotProduct = 0;
+  let leftMagnitude = 0;
+  let rightMagnitude = 0;
+  for (let index = 0; index < left.length; index += 1) {
+    dotProduct += left[index] * right[index];
+    leftMagnitude += left[index] ** 2;
+    rightMagnitude += right[index] ** 2;
+  }
+  return dotProduct / (Math.sqrt(leftMagnitude) * Math.sqrt(rightMagnitude));
+}
+
+function tokenize(text) {
+  return [...new Set(
+    text
+      .normalize('NFD')
+      .replace(/\p{Diacritic}/gu, '')
+      .toLocaleLowerCase('pt-BR')
+      .match(/[\p{L}\p{N}]{3,}/gu)
+      ?.filter((token) => !new Set(['para', 'como', 'com', 'uma', 'que', 'the', 'and', 'por', 'das', 'dos']).has(token)) || [],
+  )];
+}
+
+function expandPortugueseQuery(question) {
+  const normalizedQuestion = question
+    .normalize('NFD')
+    .replace(/\p{Diacritic}/gu, '')
+    .toLocaleLowerCase('pt-BR');
+  const expansions = Object.entries(portugueseGlossary)
+    .filter(([term]) => normalizedQuestion.includes(term.normalize('NFD').replace(/\p{Diacritic}/gu, '')))
+    .flatMap(([, equivalents]) => equivalents);
+  return [question, ...new Set(expansions)].join(' ');
+}
+
+function lexicalScore(question, chunk) {
+  const terms = tokenize(expandPortugueseQuery(question));
+  if (!terms.length) return 0;
+
+  const title = `${chunk.question} ${chunk.title}`.toLocaleLowerCase('pt-BR');
+  const text = chunk.text.toLocaleLowerCase('pt-BR');
+  let score = 0;
+  for (const term of terms) {
+    if (title.includes(term)) score += 3;
+    else if (text.includes(term)) score += 1;
+  }
+  return Math.min(score / (terms.length * 3), 1);
+}
+
+function readIndex() {
+  try {
+    return JSON.parse(readFileSync(config.indexPath, 'utf8'));
+  } catch {
+    throw new Error('Índice ausente. Execute: npm run index');
+  }
+}
+
+export async function buildIndex() {
+  const chunks = markdownFiles(config.faqDirectory).flatMap(safeChunks);
+  if (!chunks.length) throw new Error('Nenhuma FAQ aprovada foi encontrada.');
+
+  if (config.retrievalMode === 'semantic') {
+    console.log(`Gerando embeddings para ${chunks.length} trechos com ${config.embeddingModel}...`);
+    const batchSize = 24;
+    for (let start = 0; start < chunks.length; start += batchSize) {
+      const batch = chunks.slice(start, start + batchSize);
+      const vectors = await embed(batch.map((chunk) => chunk.text));
+      batch.forEach((chunk, index) => {
+        chunk.embedding = vectors[index];
+      });
+      console.log(`Indexados ${Math.min(start + batch.length, chunks.length)}/${chunks.length}`);
+    }
+  }
+
+  mkdirSync(dirname(config.indexPath), { recursive: true });
+  writeFileSync(
+    config.indexPath,
+    JSON.stringify({
+      version: 1,
+      createdAt: new Date().toISOString(),
+      retrievalMode: config.retrievalMode,
+      embeddingModel: config.retrievalMode === 'semantic' ? config.embeddingModel : null,
+      chunks,
+    }),
+  );
+  return { documents: new Set(chunks.map((chunk) => chunk.source)).size, chunks: chunks.length };
+}
+
+export async function search(question, limit = 4) {
+  const index = readIndex();
+  if (index.retrievalMode === 'semantic' && index.embeddingModel !== config.embeddingModel) {
+    throw new Error(`O índice usa ${index.embeddingModel}. Configure o mesmo modelo ou execute npm run index novamente.`);
+  }
+
+  if (index.retrievalMode !== 'semantic') {
+    return index.chunks
+      .map((chunk) => ({ ...chunk, score: lexicalScore(question, chunk) }))
+      .sort((left, right) => right.score - left.score)
+      .slice(0, limit);
+  }
+
+  const [questionEmbedding] = await embed([question]);
+  return index.chunks
+    .map((chunk) => ({ ...chunk, score: cosineSimilarity(questionEmbedding, chunk.embedding) }))
+    .sort((left, right) => right.score - left.score)
+    .slice(0, limit);
+}
+
+async function workerRequest(path, options = {}) {
+  const response = await fetch(`${config.sacfAiBaseUrl}${path}`, {
+    ...options,
+    headers: {
+      authorization: `Bearer ${config.sacfAiServiceToken}`,
+      'content-type': 'application/json',
+      ...options.headers,
+    },
+  });
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(`SACF AI Worker retornou ${response.status}: ${body.detail || body.error || 'erro desconhecido'}`);
+  return body;
+}
+
+async function generateWithWorker(messages) {
+  if (!config.sacfAiServiceToken) throw new Error('SACF_AI_SERVICE_TOKEN não configurado.');
+  const submitted = await workerRequest('/v1/jobs', {
+    method: 'POST',
+    body: JSON.stringify({
+      operation: 'generate',
+      tenant_label: config.sacfAiTenantLabel,
+      priority: config.sacfAiPriority,
+      payload: {
+        model: config.sacfAiModel,
+        messages,
+        language: 'pt-BR',
+        clean: true,
+        reasoning: false,
+        options: { temperature: 0.2 },
+      },
+    }),
+  });
+  if (!submitted.job_id) throw new Error('SACF AI Worker não retornou job_id.');
+
+  const deadline = Date.now() + config.sacfAiJobTimeoutMs;
+  while (Date.now() < deadline) {
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+    const job = await workerRequest(`/v1/jobs/${submitted.job_id}`);
+    if (job.status === 'done') return job.result?.text?.trim() || '';
+    if (job.status === 'dead_letter' || job.status === 'failed') {
+      throw new Error(`SACF AI Worker não concluiu o job: ${job.error || job.status}`);
+    }
+  }
+  throw new Error(`Tempo limite ao aguardar o job ${submitted.job_id}.`);
+}
+
+export async function answer(question) {
+  const results = await search(question);
+  if (!results.length || results[0].score < config.minRetrievalScore) {
+    return {
+      answer: 'Não encontrei uma confirmação suficiente nas FAQs públicas da Zasso para responder com segurança. Posso encaminhar esta pergunta para a equipe.',
+      sources: [],
+      confident: false,
+    };
+  }
+
+  const context = results
+    .map((result, index) => `[Fonte ${index + 1}: ${result.faqId} — ${result.question}]\n${result.text}`)
+    .join('\n\n---\n\n');
+
+  const responseText = await generateWithWorker([
+      {
+        role: 'system',
+        content: `Você é o assistente comercial inicial da Zasso. Responda em português brasileiro, de forma clara e concisa. Use exclusivamente o contexto fornecido. Não invente números, disponibilidade, certificações, garantias, preços ou informações técnicas. Preserve as ressalvas do contexto. Se o contexto não sustentar a resposta, diga exatamente que não encontrou confirmação suficiente nas FAQs públicas e ofereça encaminhar a pergunta para a equipe.`,
+      },
+      { role: 'user', content: `Pergunta: ${question}\n\nContexto permitido:\n${context}` },
+    ]);
+
+  return {
+    answer: responseText || 'Não foi possível gerar uma resposta agora.',
+    sources: [...new Map(results.map((result) => [result.source, result])).values()].map((result) => ({
+      faqId: result.faqId,
+      question: result.question,
+      source: result.source,
+      score: Number(result.score.toFixed(3)),
+    })),
+    confident: true,
+  };
+}

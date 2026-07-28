@@ -1,0 +1,15 @@
+{
+  "name": "zasso-telegram-bot",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "index": "node src/cli.mjs index",
+    "ask": "node src/cli.mjs ask",
+    "search": "node src/cli.mjs search",
+    "telegram": "node src/telegram.mjs"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
