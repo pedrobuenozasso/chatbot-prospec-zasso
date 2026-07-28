@@ -64,6 +64,8 @@ No modo lexical, o arquivo `knowledge/query-glossary.pt-br.json` traduz termos c
 
 O conector por long polling já está incluído. Siga o [guia de configuração](docs/TELEGRAM_SETUP.md) quando recuperar o token.
 Para conduzir a apresentação, use o [roteiro de demonstração](docs/CEO_DEMO.md).
+Perguntas em inglês também são aceitas: o bot detecta o idioma e responde no
+mesmo idioma; português brasileiro continua sendo o padrão.
 
 ## Segurança
 

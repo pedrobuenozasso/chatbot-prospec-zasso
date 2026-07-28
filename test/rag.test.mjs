@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { answer, buildIndex, removeOpeningGreeting, search } from '../src/rag.mjs';
+import { answer, buildIndex, detectLanguage, removeOpeningGreeting, search } from '../src/rag.mjs';
 
 const cases = [
   ['Como a capina elétrica funciona?', 'FAQ-018'],
@@ -10,6 +10,8 @@ const cases = [
   ['A tecnologia funciona em plantas adultas?', 'FAQ-072'],
   ['É perigoso trabalhar com alta tensão?', 'FAQ-133'],
   ['A Zasso afeta a biodiversidade?', 'FAQ-239'],
+  ['How does electrical weeding work?', 'FAQ-018'],
+  ['Where does Zasso operate?', 'FAQ-007'],
 ];
 
 test('a base pública é indexada', async () => {
@@ -37,6 +39,13 @@ test('entende uma saudação natural com pergunta de bem-estar', async () => {
   assert.equal(result.confident, true);
   assert.equal(result.sources.length, 0);
   assert.match(result.answer, /tudo bem por aqui/i);
+});
+
+test('detecta inglês e responde a uma saudação no mesmo idioma', async () => {
+  assert.equal(detectLanguage('How does electrical weeding work?'), 'en-US');
+  const result = await answer('Hello, how are you?');
+  assert.equal(result.confident, true);
+  assert.match(result.answer, /I’m doing well/i);
 });
 
 test('não inventa resposta para uma pergunta sem evidência', async () => {
