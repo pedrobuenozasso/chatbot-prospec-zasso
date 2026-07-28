@@ -1,4 +1,26 @@
-# Zasso Telegram Bot — MVP
+# Chatbot Zasso
+
+Este repositório reúne dois níveis do mesmo produto:
+
+- o MVP Telegram na raiz, rápido para demonstração e testes de perguntas;
+- o núcleo de produção em [`production/`](production/), com PostgreSQL/pgvector,
+  ingestão semântica, memória, roteamento e base preparada para a futura troca
+  de Telegram por WhatsApp Business.
+
+Os dois compartilham a mesma fonte permitida: `knowledge/public-faq/`.
+
+## Núcleo de produção
+
+O código importado para `production/` é a base de evolução do projeto real. A
+importação exclui deliberadamente o Vault bruto e qualquer conteúdo interno.
+Antes de executar, siga [`production/docs/START_HERE.md`](production/docs/START_HERE.md),
+configure os dois arquivos `.env` a partir dos exemplos e confira
+[`knowledge/POLICY.md`](knowledge/POLICY.md).
+
+O filtro de visibilidade no retrieval é obrigatório: somente chunks `public` e
+`public_suggested` podem ser entregues ao modelo.
+
+## MVP Telegram
 
 MVP local para responder perguntas comerciais sobre a Zasso no Telegram, usando Ollama e uma base de conhecimento explicitamente aprovada.
 

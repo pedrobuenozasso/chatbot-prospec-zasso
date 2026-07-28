@@ -1,0 +1,21 @@
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: chatbot-postgres
+    restart: unless-stopped
+    ports:
+      # 5433 por fora: a 5432 já está ocupada pelo sacf-postgres-dev (outro projeto).
+      - "127.0.0.1:5433:5432"
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=chatbot
+    volumes:
+      - chatbot-postgres-data:/var/lib/postgresql/data
+      # Roda automaticamente na PRIMEIRA criação do volume (extensão + tabelas).
+      # Se você já rodou o schema.sql manualmente antes de criar este volume,
+      # este arquivo não vai re-executar sozinho — mantenha os dois em sincronia.
+      - ./ingestion-worker/schema.sql:/docker-entrypoint-initdb.d/schema.sql:ro
+
+volumes:
+  chatbot-postgres-data:
