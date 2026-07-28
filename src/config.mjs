@@ -37,6 +37,7 @@ export const config = {
   maxAnswerChars: Number(process.env.MAX_ANSWER_CHARS || '1400'),
   telegramRateLimitMaxRequests: Number(process.env.TELEGRAM_RATE_LIMIT_MAX_REQUESTS || '8'),
   telegramRateLimitWindowMs: Number(process.env.TELEGRAM_RATE_LIMIT_WINDOW_MS || '60000'),
+  showSources: (process.env.SHOW_SOURCES || 'false').toLocaleLowerCase() === 'true',
   telegramToken: process.env.TELEGRAM_BOT_TOKEN || '',
   allowedChatIds: new Set(
     (process.env.TELEGRAM_ALLOWED_CHAT_IDS || '')

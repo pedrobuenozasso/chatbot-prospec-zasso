@@ -2,8 +2,8 @@
 
 ## Objetivo
 
-Demonstrar que o assistente responde em português, com linguagem comercial
-clara e apenas a partir de uma base aprovada da Zasso. O Telegram é o canal de
+Demonstre que o assistente conversa em português com naturalidade, linguagem
+comercial clara e apenas a partir de informações aprovadas da Zasso. O Telegram é o canal de
 prova; o núcleo em `production/` é o caminho técnico para WhatsApp.
 
 ## Antes de abrir a conversa
@@ -13,6 +13,9 @@ prova; o núcleo em `production/` é o caminho técnico para WhatsApp.
    `TELEGRAM_ALLOWED_CHAT_IDS`.
 3. Inicie o bot com `npm run telegram`.
 4. Envie `/start` e depois `/examples` para apresentar o escopo.
+
+As referências técnicas ficam ocultas ao cliente por padrão, para a conversa
+soar natural. Em uma validação interna, defina `SHOW_SOURCES=true` no `.env`.
 
 ## Perguntas sugeridas
 
