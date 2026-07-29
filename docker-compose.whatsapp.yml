@@ -1,0 +1,23 @@
+services:
+  zasso-chatbot-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: zasso-chatbot-api
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      CHATBOT_API_HOST: 0.0.0.0
+      CHATBOT_API_PORT: 3000
+    ports:
+      - "127.0.0.1:3000:3000"
+    volumes:
+      - zasso_chatbot_state:/app/.state
+      - zasso_chatbot_outbox:/app/.outbox
+      - zasso_chatbot_logs:/app/.logs
+
+volumes:
+  zasso_chatbot_state:
+  zasso_chatbot_outbox:
+  zasso_chatbot_logs:

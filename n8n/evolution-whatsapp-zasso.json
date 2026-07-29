@@ -1,0 +1,268 @@
+{
+  "name": "Zasso | Evolution WhatsApp -> Chatbot",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## Antes de ativar\n1. Crie uma credencial **Header Auth** para o webhook: header `x-zasso-webhook-secret`.\n2. Selecione essa credencial no node Webhook.\n3. Crie uma credencial Header Auth para o chatbot: `Authorization` = `Bearer SEU_CHATBOT_API_TOKEN`.\n4. Crie outra para a Evolution: `apikey` = sua chave da instância.\n5. Defina no n8n: `ZASSO_CHATBOT_URL` e `EVOLUTION_API_URL`.\n6. Ative o workflow e configure o evento `MESSAGES_UPSERT` na Evolution.",
+        "height": 340,
+        "width": 460,
+        "color": 5
+      },
+      "id": "64fe1d9a-1a45-40a0-a790-392f9ff83a03",
+      "name": "LEIA PRIMEIRO",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -820,
+        -360
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "evolution-zasso-whatsapp",
+        "authentication": "headerAuth",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "id": "8f4b2352-2272-4e8a-a9a5-b2d29d72957b",
+      "name": "Evolution Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -720,
+        40
+      ],
+      "webhookId": "zasso-evolution-whatsapp"
+    },
+    {
+      "parameters": {
+        "jsCode": "const payload = $json.body ?? $json;\nconst event = String(payload.event ?? '').toLowerCase().replace(/[_-]/g, '.');\nif (event !== 'messages.upsert') return [];\n\nconst data = payload.data ?? {};\nconst key = data.key ?? data.message?.key ?? {};\nconst remoteJid = String(key.remoteJid ?? data.remoteJid ?? '');\nconst deliveryJid = remoteJid.endsWith('@lid')\n  ? String(key.remoteJidAlt ?? data.remoteJidAlt ?? remoteJid)\n  : remoteJid;\nconst instance = String(payload.instance ?? payload.instanceName ?? '');\n\nif (!instance || !remoteJid || key.fromMe === true) return [];\nif (remoteJid.endsWith('@g.us') || remoteJid === 'status@broadcast' || remoteJid.includes('@newsletter')) return [];\n\nconst message = data.message ?? {};\nconst unwrapped = message.ephemeralMessage?.message ?? message.viewOnceMessage?.message ?? message;\nconst text = String(\n  unwrapped.conversation ??\n  unwrapped.extendedTextMessage?.text ??\n  unwrapped.imageMessage?.caption ??\n  unwrapped.videoMessage?.caption ??\n  ''\n).trim();\nif (!text || !key.id) return [];\n\nconst number = deliveryJid.split('@')[0].replace(/\\D/g, '');\nif (!number) return [];\n\nreturn [{\n  json: {\n    channel: 'whatsapp',\n    instance,\n    number,\n    remoteJid,\n    conversationId: `whatsapp:${instance}:${remoteJid}`,\n    messageId: String(key.id),\n    firstName: String(data.pushName ?? data.notifyName ?? '').slice(0, 80),\n    language: 'pt-BR',\n    text\n  }\n}];"
+      },
+      "id": "463532d2-a3b9-4bce-9f6a-c26736168a91",
+      "name": "Normalizar e Filtrar Evento",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -480,
+        40
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.ZASSO_CHATBOT_URL.replace(/\\/$/, '') + '/v1/messages' }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "content-type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ JSON.stringify({ channel: $json.channel, conversationId: $json.conversationId, messageId: $json.messageId, firstName: $json.firstName, language: $json.language, text: $json.text }) }}",
+        "options": {
+          "timeout": 120000
+        }
+      },
+      "id": "2a32494e-8013-489e-b991-b63818add5d3",
+      "name": "Consultar Chatbot Zasso",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -220,
+        40
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const inbound = $('Normalizar e Filtrar Evento').first().json;\nconst result = $json;\nif (result.duplicate === true || !Array.isArray(result.messages)) return [];\n\nreturn result.messages\n  .map((text) => String(text ?? '').trim())\n  .filter(Boolean)\n  .map((text, index) => ({\n    json: {\n      instance: inbound.instance,\n      number: inbound.number,\n      text: text.slice(0, 4000),\n      delay: Math.min(2500, Math.max(900, 700 + text.length * 7)),\n      order: index\n    }\n  }));"
+      },
+      "id": "47d76569-ac75-4c15-aea9-cb565aa827c7",
+      "name": "Preparar Respostas",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        40,
+        40
+      ]
+    },
+    {
+      "parameters": {
+        "batchSize": 1,
+        "options": {
+          "reset": false
+        }
+      },
+      "id": "9502872c-62b1-4764-b76e-2aca43dc7c3c",
+      "name": "Uma Mensagem por Vez",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        280,
+        40
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.EVOLUTION_API_URL.replace(/\\/$/, '') + '/message/sendText/' + encodeURIComponent($json.instance) }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "content-type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ JSON.stringify({ number: $json.number, textMessage: { text: $json.text }, delay: $json.delay, linkPreview: false }) }}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "cbf24cf7-025d-4187-913f-c6e02952d63f",
+      "name": "Enviar pela Evolution",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        520,
+        120
+      ]
+    },
+    {
+      "parameters": {
+        "amount": 1
+      },
+      "id": "5601c297-f24e-4699-8590-d4f8bb3a35bc",
+      "name": "Pausa Natural",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        760,
+        120
+      ],
+      "webhookId": "zasso-natural-pacing"
+    },
+    {
+      "parameters": {},
+      "id": "72dd59cb-e9a0-46aa-b63b-b75420520ea6",
+      "name": "Concluído",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        520,
+        -80
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Evolution Webhook": {
+      "main": [
+        [
+          {
+            "node": "Normalizar e Filtrar Evento",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalizar e Filtrar Evento": {
+      "main": [
+        [
+          {
+            "node": "Consultar Chatbot Zasso",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Consultar Chatbot Zasso": {
+      "main": [
+        [
+          {
+            "node": "Preparar Respostas",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar Respostas": {
+      "main": [
+        [
+          {
+            "node": "Uma Mensagem por Vez",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Uma Mensagem por Vez": {
+      "main": [
+        [
+          {
+            "node": "Concluído",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Enviar pela Evolution",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enviar pela Evolution": {
+      "main": [
+        [
+          {
+            "node": "Pausa Natural",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pausa Natural": {
+      "main": [
+        [
+          {
+            "node": "Uma Mensagem por Vez",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "versionId": "ab67bfe0-80d0-4857-8435-efb11b2e7969",
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "tags": []
+}

@@ -16,8 +16,11 @@ O MVP é adequado para demonstração controlada e chat privado autorizado. Ele 
 - **Proteção da saída:** respostas com indícios de token, endpoint, variável de segredo, prompt de sistema ou instrução interna são descartadas e substituídas por uma resposta segura.
 - **Saída de rede restrita:** o token do Worker só pode ser enviado por HTTPS ao host `ai.sacf.io`; uma URL diferente é recusada antes da requisição.
 - **Abuso:** limite local por chat, mensagem máxima e contexto máximo enviado ao worker.
-- **Privacidade operacional:** logs locais usam hashes de pergunta e chat; não gravam texto da pergunta nem tokens. O estado usa hash do ID do Telegram e não persiste o `username`.
+- **Privacidade operacional:** logs locais usam hashes de pergunta e conversa; não gravam texto nem tokens. O estado usa hash do identificador de Telegram/WhatsApp e não persiste `username` ou telefone em claro.
 - **Erros seguros:** mensagens de erro para o usuário não expõem detalhes de infraestrutura, tokens ou prompts.
+- **Webhook WhatsApp autenticado:** Evolution, n8n e chatbot usam segredos diferentes; o workflow exportado não contém credenciais.
+- **Idempotência:** cada `messageId` é guardado somente como hash e reentregas da Evolution não geram uma segunda resposta.
+- **Isolamento de canal:** eventos `fromMe`, grupos, status e newsletters são descartados no n8n antes de chegar ao agente.
 
 ## Dados persistidos no piloto
 

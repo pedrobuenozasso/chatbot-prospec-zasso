@@ -63,13 +63,28 @@ comerciais e técnicos recorrentes para os termos em inglês presentes nas FAQs.
 Há glossários para português brasileiro, alemão, francês e espanhol; as
 perguntas originais em inglês são pesquisadas diretamente.
 
-## Telegram
+## Canais
+
+O núcleo em `src/agent.mjs` não depende do canal. Telegram e WhatsApp usam a
+mesma lógica de RAG, segurança, idiomas, qualificação e handoff.
+
+### Telegram
 
 O conector por long polling já está incluído. Siga o [guia de configuração](docs/TELEGRAM_SETUP.md) quando recuperar o token.
 Para conduzir a apresentação, use o [roteiro de demonstração](docs/CEO_DEMO.md).
 O bot detecta e mantém o idioma da conversa em português brasileiro, inglês,
 alemão, francês ou espanhol. Mensagens curtas durante a qualificação herdam o
 idioma já detectado, evitando trocas de idioma indevidas.
+
+### WhatsApp com Evolution API e n8n
+
+A API interna é iniciada com `npm run api`. O workflow importável está em
+[`n8n/evolution-whatsapp-zasso.json`](n8n/evolution-whatsapp-zasso.json) e o
+passo a passo completo em
+[`docs/EVOLUTION_N8N_SETUP.md`](docs/EVOLUTION_N8N_SETUP.md).
+
+O n8n recebe `MESSAGES_UPSERT`, filtra eventos, chama `POST /v1/messages` e
+envia as respostas pela Evolution. Nenhuma chave é armazenada no workflow.
 
 ## Qualificação comercial
 
@@ -87,4 +102,4 @@ npm test
 
 ## Segredos
 
-O token do Telegram e configurações locais pertencem a `.env`, que nunca deve ser versionado.
+Tokens e configurações locais pertencem a `.env`, que nunca deve ser versionado.

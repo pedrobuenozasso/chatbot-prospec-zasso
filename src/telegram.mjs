@@ -1,10 +1,10 @@
+import { processInboundMessage } from './agent.mjs';
 import { config } from './config.mjs';
-import { advanceQualification, getConversation, migrateConversationState, qualificationQuestion, resetConversation, saveConversation, STAGES } from './conversation.mjs';
-import { queueQualifiedLead, secureHandoffStorage } from './handoff.mjs';
+import { migrateConversationState } from './conversation.mjs';
+import { secureHandoffStorage } from './handoff.mjs';
 import { normalizeLanguage, t } from './i18n.mjs';
 import { identifierFingerprint, recordEvent } from './observability.mjs';
 import { typingDelayFor } from './pacing.mjs';
-import { answer, assessQualificationReply, isPromptInjection } from './rag.mjs';
 
 const telegramApi = `https://api.telegram.org/bot${config.telegramToken}`;
 const requestsByChat = new Map();
@@ -40,37 +40,10 @@ function withinRateLimit(chatId) {
   return true;
 }
 
-function sourceList(sources, language) {
-  if (!config.showSources || !sources.length) return '';
-  return `\n\n${t(language, 'sourceLabel')}: ${sources.map((source) => source.faqId).join(', ')}`;
-}
-
-function needsGreeting(state, answerText) {
-  return !state.greeted && !/^(olá|oi|bom dia|boa tarde|boa noite|hello|hi|good morning|good afternoon|good evening|hallo|guten|bonjour|salut|bonsoir|hola|buenos|buenas)/iu.test(answerText);
-}
-
-function humanizedProgress(progress) {
-  return [progress.acknowledgement, progress.nextQuestion].filter(Boolean).join(' ');
-}
-
-async function finishQualification(chatId, state) {
-  if (state.handoffStatus === 'queued') return;
-  const result = queueQualifiedLead(state);
-  state.handoffStatus = result.status;
-  saveConversation(chatId, state);
-  recordEvent('lead_qualified', {
-    chatFingerprint: identifierFingerprint(chatId),
-    segment: state.qualification.segment,
-    handoffStatus: result.status,
-  });
-}
-
 async function respond(message) {
   const chatId = message.chat.id;
   const text = message.text?.trim() || '';
   const telegramLanguage = normalizeLanguage(message.from?.language_code);
-  const state = getConversation(chatId, { firstName: message.from?.first_name, language: telegramLanguage });
-  const language = state.language || telegramLanguage;
   console.log(`Mensagem recebida do chat ${identifierFingerprint(chatId)}.`);
   if (!canUse(chatId)) {
     recordEvent('access_denied', { chatFingerprint: identifierFingerprint(chatId) });
@@ -78,26 +51,6 @@ async function respond(message) {
     return;
   }
 
-  if (['/start', '/reset', '/restart', '/reiniciar', '/neustart', '/recommencer'].includes(text.toLocaleLowerCase())) {
-    resetConversation(chatId);
-    await telegram('sendMessage', {
-      chat_id: chatId,
-      text: `${t(telegramLanguage, 'welcome')}\n\n${t(telegramLanguage, 'reset')}`,
-    });
-    return;
-  }
-  if (text === '/help') {
-    await telegram('sendMessage', { chat_id: chatId, text: t(language, 'welcome') });
-    return;
-  }
-  if (text === '/examples') {
-    await telegram('sendMessage', { chat_id: chatId, text: t(language, 'examples') });
-    return;
-  }
-  if (!text) {
-    await telegram('sendMessage', { chat_id: chatId, text: t(language, 'textOnly') });
-    return;
-  }
   if (!withinRateLimit(chatId)) {
     recordEvent('rate_limited', { chatFingerprint: identifierFingerprint(chatId) });
     await telegram('sendMessage', { chat_id: chatId, text: t(language, 'rateLimited') });
@@ -105,53 +58,20 @@ async function respond(message) {
   }
 
   try {
-    if (state.stage !== STAGES.NEW && state.stage !== STAGES.COMPLETED) {
-      await telegram('sendChatAction', { chat_id: chatId, action: 'typing' });
-      if (isPromptInjection(text)) {
-        const blocked = await answer(text, language);
-        await sendWithTyping(chatId, blocked.answer);
-        await sendWithTyping(chatId, qualificationQuestion(state.stage, language));
-        return;
-      }
-      const assessment = await assessQualificationReply(state.stage, text, language);
-      if (assessment.kind === 'question') {
-        const result = await answer(text, language);
-        state.language = result.language;
-        saveConversation(chatId, state);
-        await sendWithTyping(chatId, `${result.answer}${sourceList(result.sources, result.language)}`.slice(0, 4000));
-        await sendWithTyping(chatId, qualificationQuestion(state.stage, result.language));
-        return;
-      }
-      if (assessment.kind === 'invalid') {
-        await sendWithTyping(chatId, qualificationQuestion(state.stage, language));
-        return;
-      }
-      const progress = advanceQualification(state, text, language);
-      saveConversation(chatId, progress.state);
-      if (progress.completed) {
-        await finishQualification(chatId, progress.state);
-        await sendWithTyping(chatId, `${progress.acknowledgement} ${t(language, 'completed')}`.trim());
-      } else {
-        await sendWithTyping(chatId, humanizedProgress(progress));
-      }
-      return;
-    }
-
-    await telegram('sendChatAction', { chat_id: chatId, action: 'typing' });
-    const result = await answer(text, language);
-    state.language = result.language;
-    const firstReply = needsGreeting(state, result.answer) ? `${t(result.language, 'greeting')} ${result.answer}` : result.answer;
-    state.greeted = true;
-    if (state.stage === STAGES.NEW) state.stage = STAGES.SEGMENT;
-    saveConversation(chatId, state);
-    await sendWithTyping(chatId, `${firstReply}${sourceList(result.sources, result.language)}`.slice(0, 4000));
-    await sendWithTyping(chatId, qualificationQuestion(STAGES.SEGMENT, result.language));
+    const result = await processInboundMessage({
+      conversationId: chatId,
+      messageId: String(message.message_id || ''),
+      text,
+      firstName: message.from?.first_name,
+      language: telegramLanguage,
+    });
+    for (const reply of result.messages) await sendWithTyping(chatId, reply);
   } catch (error) {
     console.error(`Falha ao responder no Telegram (${error?.name || 'Error'}).`);
     recordEvent('response_error', { chatFingerprint: identifierFingerprint(chatId), errorType: error?.name || 'Error' });
     await telegram('sendMessage', {
       chat_id: chatId,
-      text: t(language, 'temporaryError'),
+      text: t(telegramLanguage, 'temporaryError'),
     });
   }
 }

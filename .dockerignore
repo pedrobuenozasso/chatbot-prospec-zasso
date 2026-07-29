@@ -1,0 +1,10 @@
+.env
+.git
+.index
+.logs
+.outbox
+.state
+node_modules
+production
+test
+*.log

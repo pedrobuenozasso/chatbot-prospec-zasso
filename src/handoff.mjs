@@ -1,8 +1,8 @@
 import { appendFileSync, chmodSync, existsSync, mkdirSync } from 'node:fs';
-import { dirname, resolve } from 'node:path';
-import { projectRoot } from './config.mjs';
+import { dirname } from 'node:path';
+import { config } from './config.mjs';
 
-const outboxPath = resolve(projectRoot, '.outbox/qualified-leads.jsonl');
+const outboxPath = config.handoffOutboxPath;
 
 function displaySegment(segment) {
   return segment === 'agro' ? 'Agronegócio' : 'Urbano';

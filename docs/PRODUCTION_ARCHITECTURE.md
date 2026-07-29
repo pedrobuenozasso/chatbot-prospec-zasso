@@ -14,11 +14,11 @@ O Vault bruto não pertence a este repositório nem deve ser indexado.
 
 ```mermaid
 flowchart LR
-  faq["knowledge/public-faq\nallowlist aprovada"] --> mvp["MVP Node / Telegram\nrecuperação lexical"]
+  faq["knowledge/public-faq\nallowlist aprovada"] --> mvp["Agente Node\nTelegram ou WhatsApp"]
   faq --> ingest["production/ingestion-worker\nembeddings multilíngues"]
   ingest --> vector["PostgreSQL + pgvector"]
   vector --> backend["production/chatbot-backend\nmemória, roteamento, RAG"]
-  backend --> channel["Telegram hoje\nWhatsApp Business depois"]
+  backend --> channel["Telegram, Evolution piloto\nWhatsApp Business oficial"]
   backend --> worker["SACF AI Worker\n/v1/jobs"]
 ```
 
@@ -35,6 +35,7 @@ flowchart LR
 
 1. Subir pgvector localmente, configurar embeddings e ingerir a allowlist.
 2. Rodar a suíte Python e ampliar os testes em português com o glossário do MVP.
-3. Criar idempotência durável por mensagem e observabilidade sem PII.
-4. Trocar o adaptador Telegram pelo WhatsApp Business.
+3. Migrar a idempotência por mensagem do piloto para armazenamento durável.
+4. Validar o adaptador Evolution/n8n e trocar a instância piloto pela
+   `WHATSAPP-BUSINESS` oficial.
 5. Entregar handoff real e fila operacional no painel próprio.
