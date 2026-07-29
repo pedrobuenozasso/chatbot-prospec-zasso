@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { answer, buildIndex, detectLanguage, removeOpeningGreeting, search, truncateAnswer } from '../src/rag.mjs';
+import { answer, buildIndex, detectLanguage, localQualificationAssessment, removeOpeningGreeting, search, truncateAnswer } from '../src/rag.mjs';
 
 const cases = [
   ['Como a capina elétrica funciona?', 'FAQ-018'],
@@ -74,4 +74,14 @@ test('encurta respostas longas preservando uma frase completa', () => {
   const result = truncateAnswer(longAnswer);
   assert.ok(result.length <= 700);
   assert.match(result, /\.$/);
+});
+
+test('não aceita respostas vagas locais para região, cultivo e hectares', async () => {
+  assert.equal(localQualificationAssessment('region', 'mato').kind, 'invalid');
+  assert.equal(localQualificationAssessment('agro_crop', 'celular').kind, 'invalid');
+  assert.equal(localQualificationAssessment('agro_area', 'uma área grande').kind, 'invalid');
+});
+
+test('entende pergunta durante qualificação sem tratá-la como dado', () => {
+  assert.equal(localQualificationAssessment('region', 'O que é capina elétrica?').kind, 'question');
 });

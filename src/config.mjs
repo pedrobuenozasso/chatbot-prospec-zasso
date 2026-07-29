@@ -32,6 +32,7 @@ export const config = {
   sacfAiTenantLabel: process.env.SACF_AI_TENANT_LABEL || 'Zasso',
   sacfAiPriority: Number(process.env.SACF_AI_PRIORITY || '3'),
   sacfAiJobTimeoutMs: Number(process.env.SACF_AI_JOB_TIMEOUT_MS || '90000'),
+  qualificationAiTimeoutMs: Number(process.env.QUALIFICATION_AI_TIMEOUT_MS || '12000'),
   maxQuestionChars: Number(process.env.MAX_QUESTION_CHARS || '800'),
   maxContextChars: Number(process.env.MAX_CONTEXT_CHARS || '12000'),
   maxAnswerChars: Number(process.env.MAX_ANSWER_CHARS || '1400'),

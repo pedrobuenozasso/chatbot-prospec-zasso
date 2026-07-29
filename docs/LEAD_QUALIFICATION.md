@@ -16,6 +16,11 @@ segurança, usa um fallback cuidadoso e ainda inicia a qualificação.
 Cada mensagem é enviada após um breve indicador de digitação, para que a
 conversa mantenha um ritmo natural em vez de disparar perguntas em sequência.
 
+Em cada etapa, uma camada de interpretação valida se a mensagem responde ao
+campo solicitado. Se o lead fizer outra pergunta, o bot responde e repete a
+mesma pergunta de qualificação; respostas vagas ou fora de contexto não são
+salvas como dados do lead.
+
 ## Fila interna e futura plataforma
 
 O MVP registra o lead qualificado em `.outbox/`, uma fila local ignorada pelo

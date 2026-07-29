@@ -118,8 +118,12 @@ export function advanceQualification(state, answer) {
     state.qualification.crop = value;
     state.stage = STAGES.AGRO_AREA;
   } else if (state.stage === STAGES.AGRO_AREA) {
+    const parsedArea = hectares(value);
+    if (parsedArea === null) {
+      return { state, nextQuestion: 'Para eu registrar corretamente, qual é o tamanho aproximado da área em hectares?', completed: false };
+    }
     state.qualification.area = value;
-    state.qualification.areaHectares = hectares(value);
+    state.qualification.areaHectares = parsedArea;
     state.stage = STAGES.COMPLETED;
   } else if (state.stage === STAGES.URBAN_PROFILE) {
     const profile = detectUrbanProfile(value);

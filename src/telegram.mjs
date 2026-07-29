@@ -3,7 +3,7 @@ import { advanceQualification, getConversation, qualificationQuestion, saveConve
 import { queueQualifiedLead } from './handoff.mjs';
 import { identifierFingerprint, recordEvent } from './observability.mjs';
 import { typingDelayFor } from './pacing.mjs';
-import { answer } from './rag.mjs';
+import { answer, assessQualificationReply } from './rag.mjs';
 
 const telegramApi = `https://api.telegram.org/bot${config.telegramToken}`;
 const requestsByChat = new Map();
@@ -107,6 +107,18 @@ async function respond(message) {
 
   try {
     if (state.stage !== STAGES.NEW && state.stage !== STAGES.COMPLETED) {
+      await telegram('sendChatAction', { chat_id: chatId, action: 'typing' });
+      const assessment = await assessQualificationReply(state.stage, text);
+      if (assessment.kind === 'question') {
+        const result = await answer(text);
+        await sendWithTyping(chatId, `${result.answer}${sourceList(result.sources)}`.slice(0, 4000));
+        await sendWithTyping(chatId, qualificationQuestion(state.stage));
+        return;
+      }
+      if (assessment.kind === 'invalid') {
+        await sendWithTyping(chatId, qualificationQuestion(state.stage));
+        return;
+      }
       const progress = advanceQualification(state, text);
       saveConversation(chatId, progress.state);
       if (progress.completed) {

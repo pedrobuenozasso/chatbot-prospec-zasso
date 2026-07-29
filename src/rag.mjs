@@ -225,7 +225,7 @@ async function workerRequest(path, options = {}) {
   return body;
 }
 
-async function generateWithWorker(messages, language) {
+async function generateWithWorker(messages, language, timeoutMs = config.sacfAiJobTimeoutMs) {
   if (!config.sacfAiServiceToken) throw new Error('SACF_AI_SERVICE_TOKEN não configurado.');
   const submitted = await workerRequest('/v1/jobs', {
     method: 'POST',
@@ -245,7 +245,7 @@ async function generateWithWorker(messages, language) {
   });
   if (!submitted.job_id) throw new Error('SACF AI Worker não retornou job_id.');
 
-  const deadline = Date.now() + config.sacfAiJobTimeoutMs;
+  const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
     await new Promise((resolve) => setTimeout(resolve, 1000));
     const job = await workerRequest(`/v1/jobs/${submitted.job_id}`);
@@ -255,6 +255,85 @@ async function generateWithWorker(messages, language) {
     }
   }
   throw new Error(`Tempo limite ao aguardar o job ${submitted.job_id}.`);
+}
+
+const QUALIFICATION_STAGE_LABELS = Object.freeze({
+  segment: 'segmento de atuação: agronegócio ou área urbana',
+  region: 'região, cidade ou estado onde atua',
+  agro_crop: 'cultivo ou aplicação agrícola principal',
+  agro_area: 'tamanho da área em hectares',
+  urban_profile: 'perfil urbano: prefeitura, prestador de serviços ou outro',
+});
+
+function questionLike(text) {
+  return /\?|^(o que|qual|quais|como|onde|quando|por que|porque|quanto|voces|vocês|what|which|how|where|when|why|can|do|does|is|are)\b/i.test(text.trim());
+}
+
+export function localQualificationAssessment(stage, text) {
+  const normalized = text
+    .normalize('NFD')
+    .replace(/\p{Diacritic}/gu, '')
+    .toLocaleLowerCase('pt-BR')
+    .trim();
+  if (questionLike(text)) return { kind: 'question' };
+
+  if (stage === 'segment') {
+    return /(agro|agric|fazenda|rural|produtor|lavoura|cultiv|urbano|prefeitura|municip|cidade|prestador|servic|contratad)/.test(normalized)
+      ? { kind: 'answer' }
+      : { kind: 'invalid' };
+  }
+  if (stage === 'agro_area') {
+    return /\d+(?:[.,]\d+)?\s*(ha|hectare|hectares)\b/.test(normalized)
+      ? { kind: 'answer' }
+      : { kind: 'invalid' };
+  }
+  if (stage === 'urban_profile') {
+    return /(prefeitura|municip|prestador|servic|contratad|outro|empresa|particular|condominio)/.test(normalized)
+      ? { kind: 'answer' }
+      : { kind: 'invalid' };
+  }
+  if (stage === 'region') {
+    return /,|\b[a-z]{2}\b|^[a-z]{6,}(?:\s+[a-z]{3,})*$|\b(mato grosso|sao paulo|minas gerais|rio de janeiro|rio grande do sul|parana|goias|bahia|pernambuco|ceara|santa catarina)\b/.test(normalized)
+      ? { kind: 'answer' }
+      : { kind: 'invalid' };
+  }
+  if (stage === 'agro_crop') {
+    return /(soja|cana|cafe|algodao|batata|vinha|vinhedo|uva|pomar|citros|citrus|milho|trigo|pastagem|arroz|feijao|aveia|banana|tomate|hortalica|floresta|eucalipto|cobertura|cultiv)/.test(normalized)
+      ? { kind: 'answer' }
+      : { kind: 'invalid' };
+  }
+  return { kind: 'invalid' };
+}
+
+function parseQualificationAssessment(raw) {
+  const match = raw.match(/\{[\s\S]*\}/);
+  if (!match) return null;
+  try {
+    const parsed = JSON.parse(match[0]);
+    return ['answer', 'question', 'invalid'].includes(parsed.kind) ? { kind: parsed.kind } : null;
+  } catch {
+    return null;
+  }
+}
+
+// A IA é usada como uma segunda camada semântica. A validação local continua
+// como fallback seguro se o Worker estiver indisponível.
+export async function assessQualificationReply(stage, text) {
+  const fallback = localQualificationAssessment(stage, text);
+  if (fallback.kind === 'question') return fallback;
+
+  try {
+    const response = await generateWithWorker([
+      {
+        role: 'system',
+        content: 'Classifique uma mensagem de lead para um fluxo comercial. Responda somente JSON válido, sem markdown: {"kind":"answer"}, {"kind":"question"} ou {"kind":"invalid"}. "answer" só vale se a mensagem responder de forma concreta ao campo pedido. "question" vale se o lead está fazendo outra pergunta. "invalid" vale para resposta vaga, sem sentido ou de outro assunto. Não aceite palavras soltas como região ou cultivo.',
+      },
+      { role: 'user', content: `Campo esperado: ${QUALIFICATION_STAGE_LABELS[stage] || stage}\nMensagem do lead: ${text}` },
+    ], 'pt-BR', config.qualificationAiTimeoutMs);
+    return parseQualificationAssessment(response) || fallback;
+  } catch {
+    return fallback;
+  }
 }
 
 const ENGLISH_SIGNAL_PATTERN = /\b(what|where|when|why|how|does|is|are|can|could|would|please|hello|hi|thanks|thank you|products|technology|electrical|weeding|safety|herbicide|operate|works?)\b/i;
