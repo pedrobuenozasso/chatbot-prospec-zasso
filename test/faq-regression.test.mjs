@@ -75,3 +75,23 @@ test('recupera perguntas sensíveis em português', async () => {
   }
   assert.deepEqual(failures, []);
 });
+
+test('recupera temas essenciais em alemão, francês e espanhol', async () => {
+  const cases = [
+    ['Wie funktioniert die elektrische Unkrautbekämpfung?', 'FAQ-018'],
+    ['Comment fonctionne le désherbage électrique ?', 'FAQ-018'],
+    ['¿Cómo funciona el deshierbe eléctrico?', 'FAQ-018'],
+    ['Was ist Zasso?', 'FAQ-001'],
+    ['Qu’est-ce que Zasso ?', 'FAQ-001'],
+    ['¿Qué es Zasso?', 'FAQ-001'],
+    ['Beeinflusst es Regenwürmer?', 'FAQ-217'],
+    ['Est-ce que cela affecte les vers de terre ?', 'FAQ-217'],
+    ['¿Afecta a las lombrices?', 'FAQ-217'],
+  ];
+  const failures = [];
+  for (const [question, expectedFaq] of cases) {
+    const [result] = await search(question, 1);
+    if (result?.faqId !== expectedFaq) failures.push({ question, expectedFaq, actual: result?.faqId });
+  }
+  assert.deepEqual(failures, []);
+});

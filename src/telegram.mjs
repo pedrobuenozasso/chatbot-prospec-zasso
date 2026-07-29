@@ -1,9 +1,10 @@
 import { config } from './config.mjs';
-import { advanceQualification, getConversation, qualificationQuestion, resetConversation, saveConversation, STAGES } from './conversation.mjs';
-import { queueQualifiedLead } from './handoff.mjs';
+import { advanceQualification, getConversation, migrateConversationState, qualificationQuestion, resetConversation, saveConversation, STAGES } from './conversation.mjs';
+import { queueQualifiedLead, secureHandoffStorage } from './handoff.mjs';
+import { normalizeLanguage, t } from './i18n.mjs';
 import { identifierFingerprint, recordEvent } from './observability.mjs';
 import { typingDelayFor } from './pacing.mjs';
-import { answer, assessQualificationReply } from './rag.mjs';
+import { answer, assessQualificationReply, isPromptInjection } from './rag.mjs';
 
 const telegramApi = `https://api.telegram.org/bot${config.telegramToken}`;
 const requestsByChat = new Map();
@@ -39,26 +40,17 @@ function withinRateLimit(chatId) {
   return true;
 }
 
-function sourceList(sources) {
+function sourceList(sources, language) {
   if (!config.showSources || !sources.length) return '';
-  return `\n\nReferências internas: ${sources.map((source) => source.faqId).join(', ')}`;
+  return `\n\n${t(language, 'sourceLabel')}: ${sources.map((source) => source.faqId).join(', ')}`;
 }
 
-const welcomeText = `Olá! Eu sou o assistente da Zasso. Posso te ajudar com dúvidas sobre a tecnologia Electroherb, aplicações, segurança e produtos.
-
-Por exemplo: “Como a capina elétrica funciona?”`;
-
-const examplesText = `Alguns assuntos sobre os quais posso ajudar:
-
-• O que é a Zasso?
-• Como a capina elétrica funciona?
-• Quais são os principais produtos da Zasso?
-• A tecnologia funciona em plantas adultas?
-• É perigoso trabalhar com alta tensão?
-• A Zasso afeta a biodiversidade?`;
-
 function needsGreeting(state, answerText) {
-  return !state.greeted && !/^(olá|oi|bom dia|boa tarde|boa noite)/i.test(answerText);
+  return !state.greeted && !/^(olá|oi|bom dia|boa tarde|boa noite|hello|hi|good morning|good afternoon|good evening|hallo|guten|bonjour|salut|bonsoir|hola|buenos|buenas)/iu.test(answerText);
+}
+
+function humanizedProgress(progress) {
+  return [progress.acknowledgement, progress.nextQuestion].filter(Boolean).join(' ');
 }
 
 async function finishQualification(chatId, state) {
@@ -76,7 +68,9 @@ async function finishQualification(chatId, state) {
 async function respond(message) {
   const chatId = message.chat.id;
   const text = message.text?.trim() || '';
-  const state = getConversation(chatId, { firstName: message.from?.first_name, username: message.from?.username });
+  const telegramLanguage = normalizeLanguage(message.from?.language_code);
+  const state = getConversation(chatId, { firstName: message.from?.first_name, language: telegramLanguage });
+  const language = state.language || telegramLanguage;
   console.log(`Mensagem recebida do chat ${identifierFingerprint(chatId)}.`);
   if (!canUse(chatId)) {
     recordEvent('access_denied', { chatFingerprint: identifierFingerprint(chatId) });
@@ -84,70 +78,80 @@ async function respond(message) {
     return;
   }
 
-  if (text === '/start' || text === '/reset' || text === '/reiniciar') {
+  if (['/start', '/reset', '/restart', '/reiniciar', '/neustart', '/recommencer'].includes(text.toLocaleLowerCase())) {
     resetConversation(chatId);
     await telegram('sendMessage', {
       chat_id: chatId,
-      text: `${welcomeText}\n\nConversa reiniciada.`,
+      text: `${t(telegramLanguage, 'welcome')}\n\n${t(telegramLanguage, 'reset')}`,
     });
     return;
   }
   if (text === '/help') {
-    await telegram('sendMessage', { chat_id: chatId, text: welcomeText });
+    await telegram('sendMessage', { chat_id: chatId, text: t(language, 'welcome') });
     return;
   }
   if (text === '/examples') {
-    await telegram('sendMessage', { chat_id: chatId, text: examplesText });
+    await telegram('sendMessage', { chat_id: chatId, text: t(language, 'examples') });
     return;
   }
   if (!text) {
-    await telegram('sendMessage', { chat_id: chatId, text: 'Por enquanto, consigo te ajudar por mensagem de texto.' });
+    await telegram('sendMessage', { chat_id: chatId, text: t(language, 'textOnly') });
     return;
   }
   if (!withinRateLimit(chatId)) {
     recordEvent('rate_limited', { chatFingerprint: identifierFingerprint(chatId) });
-    await telegram('sendMessage', { chat_id: chatId, text: 'Recebi muitas mensagens em sequência. Aguarde um minuto e tente novamente.' });
+    await telegram('sendMessage', { chat_id: chatId, text: t(language, 'rateLimited') });
     return;
   }
 
   try {
     if (state.stage !== STAGES.NEW && state.stage !== STAGES.COMPLETED) {
       await telegram('sendChatAction', { chat_id: chatId, action: 'typing' });
-      const assessment = await assessQualificationReply(state.stage, text);
+      if (isPromptInjection(text)) {
+        const blocked = await answer(text, language);
+        await sendWithTyping(chatId, blocked.answer);
+        await sendWithTyping(chatId, qualificationQuestion(state.stage, language));
+        return;
+      }
+      const assessment = await assessQualificationReply(state.stage, text, language);
       if (assessment.kind === 'question') {
-        const result = await answer(text);
-        await sendWithTyping(chatId, `${result.answer}${sourceList(result.sources)}`.slice(0, 4000));
-        await sendWithTyping(chatId, qualificationQuestion(state.stage));
+        const result = await answer(text, language);
+        state.language = result.language;
+        saveConversation(chatId, state);
+        await sendWithTyping(chatId, `${result.answer}${sourceList(result.sources, result.language)}`.slice(0, 4000));
+        await sendWithTyping(chatId, qualificationQuestion(state.stage, result.language));
         return;
       }
       if (assessment.kind === 'invalid') {
-        await sendWithTyping(chatId, qualificationQuestion(state.stage));
+        await sendWithTyping(chatId, qualificationQuestion(state.stage, language));
         return;
       }
-      const progress = advanceQualification(state, text);
+      const progress = advanceQualification(state, text, language);
       saveConversation(chatId, progress.state);
       if (progress.completed) {
         await finishQualification(chatId, progress.state);
-        await sendWithTyping(chatId, 'Obrigado pelas informações. Já organizei os dados para que o time responsável possa dar continuidade ao atendimento.');
+        await sendWithTyping(chatId, `${progress.acknowledgement} ${t(language, 'completed')}`.trim());
       } else {
-        await sendWithTyping(chatId, progress.nextQuestion);
+        await sendWithTyping(chatId, humanizedProgress(progress));
       }
       return;
     }
 
     await telegram('sendChatAction', { chat_id: chatId, action: 'typing' });
-    const result = await answer(text);
-    const firstReply = needsGreeting(state, result.answer) ? `Olá! ${result.answer}` : result.answer;
+    const result = await answer(text, language);
+    state.language = result.language;
+    const firstReply = needsGreeting(state, result.answer) ? `${t(result.language, 'greeting')} ${result.answer}` : result.answer;
     state.greeted = true;
     if (state.stage === STAGES.NEW) state.stage = STAGES.SEGMENT;
     saveConversation(chatId, state);
-    await sendWithTyping(chatId, `${firstReply}${sourceList(result.sources)}`.slice(0, 4000));
-    await sendWithTyping(chatId, qualificationQuestion(STAGES.SEGMENT));
+    await sendWithTyping(chatId, `${firstReply}${sourceList(result.sources, result.language)}`.slice(0, 4000));
+    await sendWithTyping(chatId, qualificationQuestion(STAGES.SEGMENT, result.language));
   } catch (error) {
-    console.error(error);
+    console.error(`Falha ao responder no Telegram (${error?.name || 'Error'}).`);
+    recordEvent('response_error', { chatFingerprint: identifierFingerprint(chatId), errorType: error?.name || 'Error' });
     await telegram('sendMessage', {
       chat_id: chatId,
-      text: 'Não consegui consultar a base agora. Tente novamente em alguns instantes.',
+      text: t(language, 'temporaryError'),
     });
   }
 }
@@ -161,6 +165,8 @@ if (config.allowedChatIds.size === 0) {
   process.exit(1);
 }
 
+migrateConversationState();
+secureHandoffStorage();
 console.log('Bot Telegram iniciado por long polling. Use Ctrl+C para parar.');
 let offset = 0;
 while (true) {

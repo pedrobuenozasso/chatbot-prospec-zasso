@@ -62,3 +62,36 @@ test('inicia uma nova conversa sem dados de qualificação anteriores', () => {
   assert.equal(lead.qualification.segment, null);
   assert.equal(lead.contact.firstName, 'Ana');
 });
+
+test('localiza perguntas e confirmações sem parecer robótico', () => {
+  const languages = [
+    ['pt-BR', /Entendi\./, /região ou cidade/i],
+    ['en-US', /Got it\./, /region or city/i],
+    ['de-DE', /Verstanden\./, /Region oder Stadt/i],
+    ['fr-FR', /Je comprends\./, /région ou ville/i],
+    ['es-ES', /Entiendo\./, /región o ciudad/i],
+  ];
+  for (const [language, expectedAck, expectedQuestion] of languages) {
+    const lead = state();
+    lead.language = language;
+    const progress = advanceQualification(lead, language === 'de-DE' ? 'Landwirtschaft' : 'Agriculture', language);
+    assert.match(progress.acknowledgement, expectedAck);
+    assert.match(progress.nextQuestion, expectedQuestion);
+  }
+});
+
+test('qualifica respostas comuns em alemão, francês e espanhol', () => {
+  const examples = [
+    ['de-DE', ['Landwirtschaft', 'München', 'Weizen', '120 Hektar']],
+    ['fr-FR', ['Agriculture', 'Lyon', 'blé', '80 hectares']],
+    ['es-ES', ['Agricultura', 'Sevilla', 'soja', '95 hectáreas']],
+  ];
+  for (const [language, replies] of examples) {
+    const lead = state();
+    lead.language = language;
+    let progress;
+    for (const reply of replies) progress = advanceQualification(lead, reply, language);
+    assert.equal(progress.completed, true);
+    assert.ok(lead.qualification.areaHectares > 0);
+  }
+});

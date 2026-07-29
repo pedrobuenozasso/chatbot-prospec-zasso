@@ -58,14 +58,18 @@ O comando importa apenas as FAQs com os metadados `status: Done` e `audience: Cu
 
 O índice é salvo em `.index/` e não é versionado. Recrie-o após modificar as FAQs. A API do worker não oferece embeddings; caso seja disponibilizado um Ollama direto para embeddings, altere `RAG_RETRIEVAL_MODE=semantic` e gere o índice novamente.
 
-No modo lexical, o arquivo `knowledge/query-glossary.pt-br.json` traduz termos comerciais e técnicos recorrentes do português para os termos em inglês presentes nas FAQs. Amplie esse glossário sempre que uma pergunta válida não encontrar a fonte adequada.
+No modo lexical, os arquivos `knowledge/query-glossary.*.json` traduzem termos
+comerciais e técnicos recorrentes para os termos em inglês presentes nas FAQs.
+Há glossários para português brasileiro, alemão, francês e espanhol; as
+perguntas originais em inglês são pesquisadas diretamente.
 
 ## Telegram
 
 O conector por long polling já está incluído. Siga o [guia de configuração](docs/TELEGRAM_SETUP.md) quando recuperar o token.
 Para conduzir a apresentação, use o [roteiro de demonstração](docs/CEO_DEMO.md).
-Perguntas em inglês também são aceitas: o bot detecta o idioma e responde no
-mesmo idioma; português brasileiro continua sendo o padrão.
+O bot detecta e mantém o idioma da conversa em português brasileiro, inglês,
+alemão, francês ou espanhol. Mensagens curtas durante a qualificação herdam o
+idioma já detectado, evitando trocas de idioma indevidas.
 
 ## Qualificação comercial
 

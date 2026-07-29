@@ -1,4 +1,4 @@
-import { appendFileSync, mkdirSync } from 'node:fs';
+import { appendFileSync, chmodSync, existsSync, mkdirSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { projectRoot } from './config.mjs';
 
@@ -29,7 +29,12 @@ export function qualifiedLeadSummary(state) {
 
 export function queueQualifiedLead(state) {
   const summary = qualifiedLeadSummary(state);
-  mkdirSync(dirname(outboxPath), { recursive: true });
-  appendFileSync(outboxPath, `${JSON.stringify({ queuedAt: new Date().toISOString(), summary })}\n`);
+  mkdirSync(dirname(outboxPath), { recursive: true, mode: 0o700 });
+  appendFileSync(outboxPath, `${JSON.stringify({ queuedAt: new Date().toISOString(), summary })}\n`, { mode: 0o600 });
+  chmodSync(outboxPath, 0o600);
   return { status: 'queued', summary };
+}
+
+export function secureHandoffStorage() {
+  if (existsSync(outboxPath)) chmodSync(outboxPath, 0o600);
 }

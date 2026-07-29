@@ -2,8 +2,9 @@
 
 ## Objetivo
 
-Demonstre que o assistente conversa em português com naturalidade, linguagem
-comercial clara e apenas a partir de informações aprovadas da Zasso. O Telegram é o canal de
+Demonstre que o assistente conversa com naturalidade em português brasileiro,
+inglês, alemão, francês e espanhol, com linguagem comercial clara e apenas a
+partir de informações aprovadas da Zasso. O Telegram é o canal de
 prova; o núcleo em `production/` é o caminho técnico para WhatsApp.
 
 ## Antes de abrir a conversa
@@ -32,6 +33,14 @@ Use nesta ordem para contar uma história curta:
 5. **É perigoso trabalhar com alta tensão?** — demonstra responsabilidade e
    resposta baseada em evidência.
 6. **A Zasso afeta a biodiversidade?** — demonstra uma pergunta ambiental.
+
+Para mostrar o comportamento multilíngue, reinicie a conversa e use uma destas
+perguntas:
+
+- `How does electrical weeding work?`
+- `Wie funktioniert die elektrische Unkrautbekämpfung?`
+- `Comment fonctionne le désherbage électrique ?`
+- `¿Cómo funciona el deshierbe eléctrico?`
 
 ## Demonstração de segurança
 

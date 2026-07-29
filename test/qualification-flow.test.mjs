@@ -83,3 +83,20 @@ test('identifica perguntas no meio de qualquer etapa e preserva o estágio', () 
     assert.equal(localQualificationAssessment(stage, message).kind, 'question');
   }
 });
+
+test('valida semanticamente respostas multilíngues sem depender do Worker', () => {
+  const cases = [
+    ['segment', 'Ich arbeite in der Landwirtschaft'],
+    ['segment', 'Je travaille dans l’agriculture'],
+    ['segment', 'Trabajo en agricultura'],
+    ['agro_crop', 'Weizen'],
+    ['agro_crop', 'blé'],
+    ['agro_area', '120 Hektar'],
+    ['agro_area', '75 hectáreas'],
+    ['urban_profile', 'municipalité'],
+    ['urban_profile', 'Dienstleister'],
+  ];
+  for (const [stage, message] of cases) {
+    assert.equal(localQualificationAssessment(stage, message).kind, 'answer');
+  }
+});

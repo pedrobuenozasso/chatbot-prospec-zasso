@@ -23,6 +23,16 @@ campo solicitado. Se o lead fizer outra pergunta, o bot responde e repete a
 mesma pergunta de qualificação; respostas vagas ou fora de contexto não são
 salvas como dados do lead.
 
+Quando uma resposta válida é recebida, a próxima pergunta vem com uma
+confirmação curta e variável conforme a etapa — por exemplo, “Entendi”,
+“Perfeito” ou equivalentes no idioma do lead. Isso dá continuidade sem repetir
+saudações nem criar uma sensação mecânica.
+
+Todo o fluxo está localizado em português brasileiro, inglês, alemão, francês
+e espanhol. O idioma detectado fica no estado da conversa, por isso respostas
+curtas como “agro”, “Weizen” ou “80 hectares” não fazem o bot voltar ao idioma
+padrão.
+
 ## Fila interna e futura plataforma
 
 O MVP registra o lead qualificado em `.outbox/`, uma fila local ignorada pelo
