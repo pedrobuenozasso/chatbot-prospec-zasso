@@ -8,25 +8,15 @@
 4. Para ambos os segmentos, registra a região/cidade.
 5. Para **agro**, coleta cultivo/aplicação e área aproximada em hectares.
 6. Para **urbano**, coleta o perfil: prefeitura, prestador de serviços ou outro.
-7. Ao concluir, monta um Lead com o resumo e o envia ao Salesforce.
+7. Ao concluir, coloca o resumo na fila interna de atendimento.
 
 O bot faz uma pergunta por vez. Se não conseguir responder a dúvida inicial com
 segurança, usa um fallback cuidadoso e ainda inicia a qualificação.
 
-## Salesforce
+## Fila interna e futura plataforma
 
-O envio direto é ativado somente com estas variáveis no `.env`:
-
-```bash
-SALESFORCE_INSTANCE_URL=https://sua-instancia.my.salesforce.com
-SALESFORCE_ACCESS_TOKEN=token-de-integracao
-SALESFORCE_API_VERSION=v60.0
-```
-
-Sem essas credenciais, o Lead completo é escrito em `.outbox/`, uma fila local
-ignorada pelo Git. Isso permite testar o fluxo sem expor dados ou criar Leads
-acidentalmente no CRM.
-
-O payload usa os campos padrão `FirstName`, `LastName`, `Company` e
-`Description`. Antes da produção, o comercial deve definir o mapeamento dos
-campos personalizados e as regras de duplicidade do Salesforce.
+O MVP registra o lead qualificado em `.outbox/`, uma fila local ignorada pelo
+Git. No produto final, essa fila será substituída pelo banco da plataforma
+própria: os usuários do comercial entrarão no painel, verão o histórico e o
+resumo estruturado, assumirão a conversa e continuarão o atendimento no mesmo
+WhatsApp. Não há dependência nem sincronização com Salesforce.

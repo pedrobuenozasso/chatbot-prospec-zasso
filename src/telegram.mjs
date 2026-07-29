@@ -1,8 +1,8 @@
 import { config } from './config.mjs';
 import { advanceQualification, getConversation, qualificationQuestion, saveConversation, STAGES } from './conversation.mjs';
+import { queueQualifiedLead } from './handoff.mjs';
 import { identifierFingerprint, recordEvent } from './observability.mjs';
 import { answer } from './rag.mjs';
-import { sendLeadToSalesforce } from './salesforce.mjs';
 
 const telegramApi = `https://api.telegram.org/bot${config.telegramToken}`;
 const requestsByChat = new Map();
@@ -55,15 +55,14 @@ function needsGreeting(state, answerText) {
 }
 
 async function finishQualification(chatId, state) {
-  if (state.crmStatus === 'sent' || state.crmStatus === 'queued') return;
-  const result = await sendLeadToSalesforce(state);
-  state.crmStatus = result.status;
-  state.crmLeadId = result.id || null;
+  if (state.handoffStatus === 'queued') return;
+  const result = queueQualifiedLead(state);
+  state.handoffStatus = result.status;
   saveConversation(chatId, state);
   recordEvent('lead_qualified', {
     chatFingerprint: identifierFingerprint(chatId),
     segment: state.qualification.segment,
-    crmStatus: result.status,
+    handoffStatus: result.status,
   });
 }
 

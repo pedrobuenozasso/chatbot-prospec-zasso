@@ -70,7 +70,7 @@ mesmo idioma; português brasileiro continua sendo o padrão.
 ## Qualificação comercial
 
 Após o primeiro atendimento, o MVP coleta o perfil do lead de forma
-conversacional e prepara seu encaminhamento ao CRM. Veja o fluxo e a
+conversacional e prepara sua entrada na fila interna de atendimento. Veja o fluxo e a
 configuração em [LEAD_QUALIFICATION.md](docs/LEAD_QUALIFICATION.md).
 
 ## Segurança

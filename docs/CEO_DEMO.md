@@ -45,4 +45,4 @@ escopo público da Zasso.
 
 > Hoje validamos a experiência: resposta em português, fontes aprovadas e
 > guardrails. Para produção, a mesma base segue para o núcleo com pgvector,
-> memória e a futura integração ao WhatsApp, CRM e handoff humano.
+> memória, a futura integração ao WhatsApp e handoff humano no painel próprio.

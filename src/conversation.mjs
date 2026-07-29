@@ -24,7 +24,7 @@ function initialState(contact = {}) {
   return {
     stage: STAGES.NEW,
     greeted: false,
-    crmStatus: 'not_ready',
+    handoffStatus: 'not_ready',
     contact: { firstName: contact.firstName || '', username: contact.username || '' },
     qualification: { segment: null, region: null, crop: null, area: null, areaHectares: null, urbanProfile: null },
     createdAt: new Date().toISOString(),

@@ -1,12 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { advanceQualification, qualificationQuestion, STAGES } from '../src/conversation.mjs';
-import { leadPayload } from '../src/salesforce.mjs';
+import { qualifiedLeadSummary } from '../src/handoff.mjs';
 
 function state() {
   return {
     stage: STAGES.SEGMENT,
-    crmStatus: 'not_ready',
+    handoffStatus: 'not_ready',
     contact: { firstName: 'Ana', username: '' },
     qualification: { segment: null, region: null, crop: null, area: null, areaHectares: null, urbanProfile: null },
   };
@@ -28,9 +28,9 @@ test('qualifica um lead agro até área em hectares', () => {
   assert.equal(progress.completed, true);
   assert.equal(lead.qualification.areaHectares, 150);
 
-  const payload = leadPayload(lead);
-  assert.match(payload.Description, /Segmento: Agronegócio/);
-  assert.match(payload.Description, /150 ha/);
+  const summary = qualifiedLeadSummary(lead);
+  assert.equal(summary.segment, 'Agronegócio');
+  assert.equal(summary.areaHectares, 150);
 });
 
 test('qualifica um lead urbano até o perfil de atuação', () => {
@@ -45,8 +45,8 @@ test('qualifica um lead urbano até o perfil de atuação', () => {
   assert.equal(progress.completed, true);
   assert.equal(lead.qualification.urbanProfile, 'prestador_de_servicos');
 
-  const payload = leadPayload(lead);
-  assert.match(payload.Description, /Perfil urbano: Prestador de serviços/);
+  const summary = qualifiedLeadSummary(lead);
+  assert.equal(summary.urbanProfile, 'Prestador de serviços');
 });
 
 test('pede esclarecimento quando o segmento não está claro', () => {

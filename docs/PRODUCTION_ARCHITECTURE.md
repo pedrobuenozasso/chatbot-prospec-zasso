@@ -37,4 +37,4 @@ flowchart LR
 2. Rodar a suíte Python e ampliar os testes em português com o glossário do MVP.
 3. Criar idempotência durável por mensagem e observabilidade sem PII.
 4. Trocar o adaptador Telegram pelo WhatsApp Business.
-5. Entregar handoff real, Salesforce e fila operacional.
+5. Entregar handoff real e fila operacional no painel próprio.
