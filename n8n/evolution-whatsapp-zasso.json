@@ -3,7 +3,7 @@
   "nodes": [
     {
       "parameters": {
-        "content": "## Antes de ativar\n1. Crie uma credencial **Header Auth** para o webhook: header `x-zasso-webhook-secret`.\n2. Selecione essa credencial no node Webhook.\n3. Crie uma credencial Header Auth para o chatbot: `Authorization` = `Bearer SEU_CHATBOT_API_TOKEN`.\n4. Crie outra para a Evolution: `apikey` = sua chave da instância.\n5. Defina no n8n: `ZASSO_CHATBOT_URL` e `EVOLUTION_API_URL`.\n6. Ative o workflow e configure o evento `MESSAGES_UPSERT` na Evolution.",
+        "content": "## Antes de ativar\n1. Crie uma credencial **Header Auth** para o webhook: header `x-zasso-webhook-secret`.\n2. Selecione essa credencial no node Webhook.\n3. Crie uma credencial Header Auth para o chatbot: `Authorization` = `Bearer SEU_CHATBOT_API_TOKEN`.\n4. Crie outra para a Evolution: `apikey` = sua chave da instância.\n5. Confirme as URLs dos nodes `Consultar Chatbot Zasso` e `Enviar pela Evolution` para o seu ambiente.\n6. Publique o workflow e configure somente o evento `MESSAGES_UPSERT` na Evolution.",
         "height": 340,
         "width": 460,
         "color": 5
@@ -51,7 +51,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $env.ZASSO_CHATBOT_URL.replace(/\\/$/, '') + '/v1/messages' }}",
+        "url": "http://zasso-chatbot:3000/v1/messages",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
         "sendHeaders": true,
@@ -112,7 +112,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $env.EVOLUTION_API_URL.replace(/\\/$/, '') + '/message/sendText/' + encodeURIComponent($json.instance) }}",
+        "url": "={{ 'https://evolution-api-v0vi.srv1522435.hstgr.cloud/message/sendText/' + encodeURIComponent($json.instance) }}",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
         "sendHeaders": true,

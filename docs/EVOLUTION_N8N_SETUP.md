@@ -98,12 +98,15 @@ Importe no n8n:
 n8n/evolution-whatsapp-zasso.json
 ```
 
-Configure no ambiente do n8n:
+No ambiente atual da VPS, o chatbot usa a rede privada do n8n:
 
-```dotenv
-ZASSO_CHATBOT_URL=http://zasso-chatbot-api:3000
-EVOLUTION_API_URL=https://SUA_EVOLUTION
+```text
+Chatbot:  http://zasso-chatbot:3000/v1/messages
+Evolution: https://evolution-api-v0vi.srv1522435.hstgr.cloud
 ```
+
+Se o workflow for importado em outro ambiente, ajuste essas duas URLs antes de
+publicar.
 
 Crie e selecione três credenciais do tipo **Header Auth**:
 
@@ -123,15 +126,19 @@ curl -X POST "https://EVOLUTION_URL/webhook/set/zasso-piloto" \
   -H "Content-Type: application/json" \
   -H "apikey: EVOLUTION_API_KEY" \
   -d '{
-    "enabled": true,
-    "url": "N8N_PRODUCTION_WEBHOOK_URL",
-    "events": ["MESSAGES_UPSERT"],
-    "headers": {
-      "x-zasso-webhook-secret": "MESMO_SEGREDO_DA_CREDENCIAL_N8N"
-    },
-    "base64": false
+    "webhook": {
+      "enabled": true,
+      "url": "N8N_PRODUCTION_WEBHOOK_URL",
+      "events": ["MESSAGES_UPSERT"],
+      "headers": {
+        "x-zasso-webhook-secret": "MESMO_SEGREDO_DA_CREDENCIAL_N8N"
+      },
+      "base64": false
+    }
   }'
 ```
+
+O wrapper `webhook` é exigido pela Evolution API 2.3.7 instalada na VPS.
 
 O workflow ignora mensagens enviadas pelo próprio número, grupos, status,
 newsletters, mensagens sem texto e reentregas com o mesmo `messageId`.
