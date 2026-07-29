@@ -1,6 +1,8 @@
 import { config } from './config.mjs';
+import { advanceQualification, getConversation, qualificationQuestion, saveConversation, STAGES } from './conversation.mjs';
 import { identifierFingerprint, recordEvent } from './observability.mjs';
 import { answer } from './rag.mjs';
+import { sendLeadToSalesforce } from './salesforce.mjs';
 
 const telegramApi = `https://api.telegram.org/bot${config.telegramToken}`;
 const requestsByChat = new Map();
@@ -48,9 +50,27 @@ const examplesText = `Alguns assuntos sobre os quais posso ajudar:
 • É perigoso trabalhar com alta tensão?
 • A Zasso afeta a biodiversidade?`;
 
+function needsGreeting(state, answerText) {
+  return !state.greeted && !/^(olá|oi|bom dia|boa tarde|boa noite)/i.test(answerText);
+}
+
+async function finishQualification(chatId, state) {
+  if (state.crmStatus === 'sent' || state.crmStatus === 'queued') return;
+  const result = await sendLeadToSalesforce(state);
+  state.crmStatus = result.status;
+  state.crmLeadId = result.id || null;
+  saveConversation(chatId, state);
+  recordEvent('lead_qualified', {
+    chatFingerprint: identifierFingerprint(chatId),
+    segment: state.qualification.segment,
+    crmStatus: result.status,
+  });
+}
+
 async function respond(message) {
   const chatId = message.chat.id;
   const text = message.text?.trim() || '';
+  const state = getConversation(chatId, { firstName: message.from?.first_name, username: message.from?.username });
   console.log(`Mensagem recebida do chat ${identifierFingerprint(chatId)}.`);
   if (!canUse(chatId)) {
     recordEvent('access_denied', { chatFingerprint: identifierFingerprint(chatId) });
@@ -80,12 +100,32 @@ async function respond(message) {
   }
 
   try {
+    if (state.stage !== STAGES.NEW && state.stage !== STAGES.COMPLETED) {
+      const progress = advanceQualification(state, text);
+      saveConversation(chatId, progress.state);
+      if (progress.completed) {
+        await finishQualification(chatId, progress.state);
+        await telegram('sendMessage', {
+          chat_id: chatId,
+          text: 'Obrigado pelas informações. Já organizei os dados para que o time responsável possa dar continuidade ao atendimento.',
+        });
+      } else {
+        await telegram('sendMessage', { chat_id: chatId, text: progress.nextQuestion });
+      }
+      return;
+    }
+
     await telegram('sendChatAction', { chat_id: chatId, action: 'typing' });
     const result = await answer(text);
+    const firstReply = needsGreeting(state, result.answer) ? `Olá! ${result.answer}` : result.answer;
+    state.greeted = true;
+    if (state.stage === STAGES.NEW) state.stage = STAGES.SEGMENT;
+    saveConversation(chatId, state);
     await telegram('sendMessage', {
       chat_id: chatId,
-      text: `${result.answer}${sourceList(result.sources)}`.slice(0, 4000),
+      text: `${firstReply}${sourceList(result.sources)}`.slice(0, 4000),
     });
+    await telegram('sendMessage', { chat_id: chatId, text: qualificationQuestion(STAGES.SEGMENT) });
   } catch (error) {
     console.error(error);
     await telegram('sendMessage', {

@@ -1,6 +1,8 @@
 .env
 .index/
 .logs/
+.state/
+.outbox/
 node_modules/
 __pycache__/
 *.pyc

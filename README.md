@@ -67,6 +67,12 @@ Para conduzir a apresentação, use o [roteiro de demonstração](docs/CEO_DEMO.
 Perguntas em inglês também são aceitas: o bot detecta o idioma e responde no
 mesmo idioma; português brasileiro continua sendo o padrão.
 
+## Qualificação comercial
+
+Após o primeiro atendimento, o MVP coleta o perfil do lead de forma
+conversacional e prepara seu encaminhamento ao CRM. Veja o fluxo e a
+configuração em [LEAD_QUALIFICATION.md](docs/LEAD_QUALIFICATION.md).
+
 ## Segurança
 
 Os guardrails e o checklist antes de abrir o bot além do piloto estão em [docs/SECURITY.md](docs/SECURITY.md). Para validar a recuperação das perguntas principais antes de uma demonstração:
