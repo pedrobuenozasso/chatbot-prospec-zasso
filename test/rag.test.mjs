@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { answer, buildIndex, detectLanguage, localQualificationAssessment, removeOpeningGreeting, search, truncateAnswer } from '../src/rag.mjs';
+import { answer, assessQualificationReply, buildIndex, detectLanguage, localQualificationAssessment, removeOpeningGreeting, search, truncateAnswer } from '../src/rag.mjs';
 
 const cases = [
   ['Como a capina elétrica funciona?', 'FAQ-018'],
@@ -85,4 +85,9 @@ test('não aceita respostas vagas locais para região, cultivo e hectares', asyn
 
 test('entende pergunta durante qualificação sem tratá-la como dado', () => {
   assert.equal(localQualificationAssessment('region', 'O que é capina elétrica?').kind, 'question');
+});
+
+test('aceita resposta canônica de qualificação sem depender do Worker', async () => {
+  assert.equal((await assessQualificationReply('segment', 'Agro')).kind, 'answer');
+  assert.equal((await assessQualificationReply('agro_area', '150 hectares')).kind, 'answer');
 });

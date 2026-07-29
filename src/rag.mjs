@@ -320,7 +320,10 @@ function parseQualificationAssessment(raw) {
 // como fallback seguro se o Worker estiver indisponível.
 export async function assessQualificationReply(stage, text) {
   const fallback = localQualificationAssessment(stage, text);
-  if (fallback.kind === 'question') return fallback;
+  // Respostas canônicas, como “agro”, “prefeitura” ou “150 hectares”, não
+  // devem depender da interpretação probabilística do modelo. A IA entra
+  // quando a mensagem é ambígua; isso evita repetir uma pergunta já respondida.
+  if (fallback.kind === 'question' || fallback.kind === 'answer') return fallback;
 
   try {
     const response = await generateWithWorker([
