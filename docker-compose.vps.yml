@@ -1,0 +1,32 @@
+name: zasso-chatbot
+
+services:
+  zasso-chatbot:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: zasso-chatbot
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      CHATBOT_API_HOST: 0.0.0.0
+      CHATBOT_API_PORT: 3000
+    expose:
+      - "3000"
+    networks:
+      - n8n
+    volumes:
+      - zasso_chatbot_state:/app/.state
+      - zasso_chatbot_outbox:/app/.outbox
+      - zasso_chatbot_logs:/app/.logs
+
+networks:
+  n8n:
+    external: true
+    name: n8n-upoc_default
+
+volumes:
+  zasso_chatbot_state:
+  zasso_chatbot_outbox:
+  zasso_chatbot_logs:
