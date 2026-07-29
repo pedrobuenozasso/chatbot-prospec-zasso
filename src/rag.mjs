@@ -23,6 +23,7 @@ const PROMPT_INJECTION_PATTERNS = [
   /voc[eê] [ée] agora/i,
   /jailbreak/i,
 ];
+let indexCache;
 
 function markdownFiles(directory) {
   return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
@@ -120,6 +121,13 @@ function tokenize(text) {
   )];
 }
 
+function normalizedSearchText(text) {
+  return text
+    .normalize('NFD')
+    .replace(/\p{Diacritic}/gu, '')
+    .toLocaleLowerCase('pt-BR');
+}
+
 function portugueseQueryExpansions(question) {
   const normalizedQuestion = question
     .normalize('NFD')
@@ -135,15 +143,26 @@ function expandPortugueseQuery(question) {
   return [question, ...portugueseQueryExpansions(question)].join(' ');
 }
 
-function lexicalScore(question, chunk) {
-  const terms = tokenize(expandPortugueseQuery(question));
+function lexicalQuery(question) {
+  return {
+    terms: tokenize(expandPortugueseQuery(question)),
+    phrases: portugueseQueryExpansions(question)
+      .map(normalizedSearchText)
+      .filter((phrase) => tokenize(phrase).length > 1),
+    exactQuestion: normalizedSearchText(question),
+  };
+}
+
+function lexicalScore(query, chunk) {
+  const { terms, phrases, exactQuestion } = query;
   if (!terms.length) return 0;
 
-  const title = `${chunk.question} ${chunk.title}`.toLocaleLowerCase('pt-BR');
-  const text = chunk.text.toLocaleLowerCase('pt-BR');
+  const title = chunk.searchTitle || normalizedSearchText(`${chunk.question} ${chunk.title}`);
+  const text = chunk.searchText || normalizedSearchText(chunk.text);
   let score = 0;
-  for (const phrase of portugueseQueryExpansions(question)) {
-    if (title.includes(phrase.toLocaleLowerCase('pt-BR'))) score += 6;
+  if (exactQuestion.length > 8 && title.includes(exactQuestion)) score += 12;
+  for (const phrase of phrases) {
+    if (title.includes(phrase)) score += 6;
   }
   for (const term of terms) {
     if (title.includes(term)) score += 3;
@@ -153,8 +172,10 @@ function lexicalScore(question, chunk) {
 }
 
 function readIndex() {
+  if (indexCache) return indexCache;
   try {
-    return JSON.parse(readFileSync(config.indexPath, 'utf8'));
+    indexCache = JSON.parse(readFileSync(config.indexPath, 'utf8'));
+    return indexCache;
   } catch {
     throw new Error('Índice ausente. Execute: npm run index');
   }
@@ -177,17 +198,20 @@ export async function buildIndex() {
     }
   }
 
+  chunks.forEach((chunk) => {
+    chunk.searchTitle = normalizedSearchText(`${chunk.question} ${chunk.title}`);
+    chunk.searchText = normalizedSearchText(chunk.text);
+  });
+
   mkdirSync(dirname(config.indexPath), { recursive: true });
-  writeFileSync(
-    config.indexPath,
-    JSON.stringify({
-      version: 1,
+  indexCache = {
+      version: 2,
       createdAt: new Date().toISOString(),
       retrievalMode: config.retrievalMode,
       embeddingModel: config.retrievalMode === 'semantic' ? config.embeddingModel : null,
       chunks,
-    }),
-  );
+    };
+  writeFileSync(config.indexPath, JSON.stringify(indexCache));
   return { documents: new Set(chunks.map((chunk) => chunk.source)).size, chunks: chunks.length };
 }
 
@@ -198,9 +222,14 @@ export async function search(question, limit = 4) {
   }
 
   if (index.retrievalMode !== 'semantic') {
+    const query = lexicalQuery(question);
     return index.chunks
-      .map((chunk) => ({ ...chunk, score: lexicalScore(question, chunk) }))
-      .sort((left, right) => right.score - left.score)
+      .map((chunk) => ({
+        ...chunk,
+        score: lexicalScore(query, chunk),
+        exactQuestionMatch: query.exactQuestion.length > 8 && (chunk.searchTitle || normalizedSearchText(`${chunk.question} ${chunk.title}`)).includes(query.exactQuestion),
+      }))
+      .sort((left, right) => Number(right.exactQuestionMatch) - Number(left.exactQuestionMatch) || right.score - left.score)
       .slice(0, limit);
   }
 
