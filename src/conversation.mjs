@@ -89,7 +89,7 @@ export function qualificationQuestion(stage) {
 function detectSegment(answer) {
   const value = normalize(answer);
   if (/(agro|agric|fazenda|rural|produtor|lavoura|cultiv)/.test(value)) return 'agro';
-  if (/(urbano|prefeitura|municip|cidade|prestador|servic|contratad)/.test(value)) return 'urban';
+  if (/(urban|prefeitura|municip|cidade|prestador|servic|contratad)/.test(value)) return 'urban';
   return null;
 }
 

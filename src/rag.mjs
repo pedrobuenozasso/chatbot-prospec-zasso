@@ -276,9 +276,12 @@ export function localQualificationAssessment(stage, text) {
     .toLocaleLowerCase('pt-BR')
     .trim();
   if (questionLike(text)) return { kind: 'question' };
+  if (/^(mato|celular|telefone|teste|ok|sim|nao|não|talvez|qualquer coisa|nao sei|não sei|uma area grande|uma área grande)$/i.test(normalized)) {
+    return { kind: 'invalid', definitive: true };
+  }
 
   if (stage === 'segment') {
-    return /(agro|agric|fazenda|rural|produtor|lavoura|cultiv|urbano|prefeitura|municip|cidade|prestador|servic|contratad)/.test(normalized)
+    return /(agro|agric|fazenda|rural|produtor|lavoura|cultiv|urban|prefeitura|municip|cidade|prestador|servic|contratad)/.test(normalized)
       ? { kind: 'answer' }
       : { kind: 'invalid' };
   }
@@ -323,7 +326,7 @@ export async function assessQualificationReply(stage, text) {
   // Respostas canônicas, como “agro”, “prefeitura” ou “150 hectares”, não
   // devem depender da interpretação probabilística do modelo. A IA entra
   // quando a mensagem é ambígua; isso evita repetir uma pergunta já respondida.
-  if (fallback.kind === 'question' || fallback.kind === 'answer') return fallback;
+  if (fallback.kind === 'question' || fallback.kind === 'answer' || fallback.definitive) return fallback;
 
   try {
     const response = await generateWithWorker([
