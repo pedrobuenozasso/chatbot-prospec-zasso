@@ -11,7 +11,9 @@
 7. Ao concluir, coloca o resumo na fila interna de atendimento.
 
 O bot faz uma pergunta por vez. Se não conseguir responder a dúvida inicial com
-segurança, usa um fallback cuidadoso e ainda inicia a qualificação.
+segurança, transforma a resposta em continuidade comercial. Em perguntas sobre
+preço, por exemplo, explica que o investimento depende da aplicação e inicia a
+qualificação, em vez de apenas recusar a resposta.
 
 Cada mensagem é enviada após um breve indicador de digitação, para que a
 conversa mantenha um ritmo natural em vez de disparar perguntas em sequência.

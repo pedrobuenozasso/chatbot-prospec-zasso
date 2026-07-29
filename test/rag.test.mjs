@@ -48,11 +48,12 @@ test('detecta inglês e responde a uma saudação no mesmo idioma', async () => 
   assert.match(result.answer, /I’m doing well/i);
 });
 
-test('não inventa resposta para uma pergunta sem evidência', async () => {
+test('transforma pergunta sem evidência em continuidade de qualificação', async () => {
   const result = await answer('Qual é o preço do equipamento?');
   assert.equal(result.confident, false);
   assert.equal(result.sources.length, 0);
-  assert.match(result.answer, /não tenho uma informação confirmada/i);
+  assert.match(result.answer, /investimento varia conforme/i);
+  assert.match(result.answer, /preciso entender/i);
 });
 
 test('recusa tentativas de mudar as instruções', async () => {

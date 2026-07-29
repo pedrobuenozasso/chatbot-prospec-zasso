@@ -384,6 +384,18 @@ export function truncateAnswer(text) {
   return `${clipped.replace(/\s+\S*$/, '').trim()}…`;
 }
 
+function qualificationFallback(question, isEnglish) {
+  const isPricingQuestion = /\b(pre[cç]o|valor|or[cç]amento|quanto custa|investimento|price|cost|quote|pricing)\b/i.test(question);
+  if (isEnglish) {
+    return isPricingQuestion
+      ? 'The investment varies according to the application, the size of the operation and the required configuration. To guide you properly, I need to understand a little more about your needs.'
+      : 'To guide you properly, I need to understand a little more about your operation and what you need.';
+  }
+  return isPricingQuestion
+    ? 'O investimento varia conforme a aplicação, o porte da operação e a configuração necessária. Para te orientar melhor, preciso entender um pouco mais sobre a sua necessidade.'
+    : 'Para te orientar melhor, preciso entender um pouco mais sobre a sua operação e o que você precisa.';
+}
+
 // O modelo às vezes tenta ser excessivamente cordial e repete uma saudação a
 // cada turno. A abertura pertence ao /start ou à primeira mensagem do cliente;
 // respostas de conteúdo devem começar direto pela informação solicitada.
@@ -451,9 +463,7 @@ export async function answer(question) {
       bestScore: Number((results[0]?.score || 0).toFixed(3)),
     });
     return {
-      answer: isEnglish
-        ? 'I do not have confirmed information about that at the moment. To avoid giving you inaccurate information, it is best to confirm this point with the Zasso team.'
-        : 'Não tenho uma informação confirmada sobre isso agora. Para não te passar algo impreciso, o ideal é confirmar esse ponto com a equipe da Zasso.',
+      answer: qualificationFallback(cleanedQuestion, isEnglish),
       sources: [],
       confident: false,
     };
