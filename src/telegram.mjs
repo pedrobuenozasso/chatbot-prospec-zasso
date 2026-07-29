@@ -1,5 +1,5 @@
 import { config } from './config.mjs';
-import { advanceQualification, getConversation, qualificationQuestion, saveConversation, STAGES } from './conversation.mjs';
+import { advanceQualification, getConversation, qualificationQuestion, resetConversation, saveConversation, STAGES } from './conversation.mjs';
 import { queueQualifiedLead } from './handoff.mjs';
 import { identifierFingerprint, recordEvent } from './observability.mjs';
 import { typingDelayFor } from './pacing.mjs';
@@ -84,11 +84,16 @@ async function respond(message) {
     return;
   }
 
-  if (text === '/start' || text === '/help') {
+  if (text === '/start' || text === '/reset' || text === '/reiniciar') {
+    resetConversation(chatId);
     await telegram('sendMessage', {
       chat_id: chatId,
-      text: welcomeText,
+      text: `${welcomeText}\n\nConversa reiniciada.`,
     });
+    return;
+  }
+  if (text === '/help') {
+    await telegram('sendMessage', { chat_id: chatId, text: welcomeText });
     return;
   }
   if (text === '/examples') {

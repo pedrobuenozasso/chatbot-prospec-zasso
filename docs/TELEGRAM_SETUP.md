@@ -56,3 +56,9 @@ Abra o bot no Telegram, envie `/start` e depois perguntas reais. Esta versão us
 - Deixe `TELEGRAM_ALLOWED_CHAT_IDS` preenchido antes de compartilhar o usuário do bot.
 - O bot externo usa somente `/v1/jobs`; `/v1/chat/completions` é reservado ao n8n.
 - Recrie o índice sempre que alterar as FAQs permitidas.
+
+## Reiniciar uma conversa de teste
+
+Envie `/reset`, `/reiniciar` ou `/start` ao bot para apagar o estado de
+qualificação daquele chat e começar novamente. Isso é útil antes de testar um
+novo fluxo sem reaproveitar segmento, região ou outras respostas anteriores.

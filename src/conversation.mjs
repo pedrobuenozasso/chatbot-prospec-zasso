@@ -20,7 +20,7 @@ function normalize(value) {
     .trim();
 }
 
-function initialState(contact = {}) {
+export function newConversation(contact = {}) {
   return {
     stage: STAGES.NEW,
     greeted: false,
@@ -51,9 +51,15 @@ function writeAll(conversations) {
 export function getConversation(chatId, contact) {
   const conversations = readAll();
   const key = String(chatId);
-  const state = conversations[key] || initialState(contact);
+  const state = conversations[key] || newConversation(contact);
   state.contact = { ...state.contact, firstName: contact?.firstName || state.contact.firstName, username: contact?.username || state.contact.username };
   return state;
+}
+
+export function resetConversation(chatId) {
+  const conversations = readAll();
+  delete conversations[String(chatId)];
+  writeAll(conversations);
 }
 
 export function saveConversation(chatId, state) {

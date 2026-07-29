@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { advanceQualification, qualificationQuestion, STAGES } from '../src/conversation.mjs';
+import { advanceQualification, newConversation, qualificationQuestion, STAGES } from '../src/conversation.mjs';
 import { qualifiedLeadSummary } from '../src/handoff.mjs';
 
 function state() {
@@ -54,4 +54,11 @@ test('pede esclarecimento quando o segmento não está claro', () => {
   const progress = advanceQualification(lead, 'Não sei');
   assert.equal(progress.state.stage, STAGES.SEGMENT);
   assert.match(progress.nextQuestion, /agronegócio ou a uma área urbana/i);
+});
+
+test('inicia uma nova conversa sem dados de qualificação anteriores', () => {
+  const lead = newConversation({ firstName: 'Ana' });
+  assert.equal(lead.stage, STAGES.NEW);
+  assert.equal(lead.qualification.segment, null);
+  assert.equal(lead.contact.firstName, 'Ana');
 });
