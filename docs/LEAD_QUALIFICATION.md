@@ -13,6 +13,9 @@
 O bot faz uma pergunta por vez. Se não conseguir responder a dúvida inicial com
 segurança, usa um fallback cuidadoso e ainda inicia a qualificação.
 
+Cada mensagem é enviada após um breve indicador de digitação, para que a
+conversa mantenha um ritmo natural em vez de disparar perguntas em sequência.
+
 ## Fila interna e futura plataforma
 
 O MVP registra o lead qualificado em `.outbox/`, uma fila local ignorada pelo

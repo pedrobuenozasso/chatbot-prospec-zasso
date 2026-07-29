@@ -39,6 +39,8 @@ export const config = {
   conversationStatePath: resolve(projectRoot, '.state/conversations.json'),
   telegramRateLimitMaxRequests: Number(process.env.TELEGRAM_RATE_LIMIT_MAX_REQUESTS || '8'),
   telegramRateLimitWindowMs: Number(process.env.TELEGRAM_RATE_LIMIT_WINDOW_MS || '60000'),
+  replyTypingMinMs: Number(process.env.REPLY_TYPING_MIN_MS || '900'),
+  replyTypingMaxMs: Number(process.env.REPLY_TYPING_MAX_MS || '2200'),
   showSources: (process.env.SHOW_SOURCES || 'false').toLocaleLowerCase() === 'true',
   telegramToken: process.env.TELEGRAM_BOT_TOKEN || '',
   allowedChatIds: new Set(

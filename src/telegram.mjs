@@ -2,6 +2,7 @@ import { config } from './config.mjs';
 import { advanceQualification, getConversation, qualificationQuestion, saveConversation, STAGES } from './conversation.mjs';
 import { queueQualifiedLead } from './handoff.mjs';
 import { identifierFingerprint, recordEvent } from './observability.mjs';
+import { typingDelayFor } from './pacing.mjs';
 import { answer } from './rag.mjs';
 
 const telegramApi = `https://api.telegram.org/bot${config.telegramToken}`;
@@ -16,6 +17,12 @@ async function telegram(method, body) {
   const data = await response.json();
   if (!data.ok) throw new Error(`Telegram ${method}: ${data.description || response.status}`);
   return data.result;
+}
+
+async function sendWithTyping(chatId, text) {
+  await telegram('sendChatAction', { chat_id: chatId, action: 'typing' });
+  await new Promise((resolve) => setTimeout(resolve, typingDelayFor(text)));
+  return telegram('sendMessage', { chat_id: chatId, text });
 }
 
 function canUse(chatId) {
@@ -104,12 +111,9 @@ async function respond(message) {
       saveConversation(chatId, progress.state);
       if (progress.completed) {
         await finishQualification(chatId, progress.state);
-        await telegram('sendMessage', {
-          chat_id: chatId,
-          text: 'Obrigado pelas informações. Já organizei os dados para que o time responsável possa dar continuidade ao atendimento.',
-        });
+        await sendWithTyping(chatId, 'Obrigado pelas informações. Já organizei os dados para que o time responsável possa dar continuidade ao atendimento.');
       } else {
-        await telegram('sendMessage', { chat_id: chatId, text: progress.nextQuestion });
+        await sendWithTyping(chatId, progress.nextQuestion);
       }
       return;
     }
@@ -120,11 +124,8 @@ async function respond(message) {
     state.greeted = true;
     if (state.stage === STAGES.NEW) state.stage = STAGES.SEGMENT;
     saveConversation(chatId, state);
-    await telegram('sendMessage', {
-      chat_id: chatId,
-      text: `${firstReply}${sourceList(result.sources)}`.slice(0, 4000),
-    });
-    await telegram('sendMessage', { chat_id: chatId, text: qualificationQuestion(STAGES.SEGMENT) });
+    await sendWithTyping(chatId, `${firstReply}${sourceList(result.sources)}`.slice(0, 4000));
+    await sendWithTyping(chatId, qualificationQuestion(STAGES.SEGMENT));
   } catch (error) {
     console.error(error);
     await telegram('sendMessage', {
