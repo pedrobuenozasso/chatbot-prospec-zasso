@@ -208,6 +208,7 @@ function handoffText(summary) {
     summary.cropOrApplication ? `Cultivo/aplicação: ${summary.cropOrApplication}` : null,
     summary.area ? `Área: ${summary.area}` : null,
     summary.urbanProfile ? `Perfil urbano: ${summary.urbanProfile}` : null,
+    summary.interest ? `Interesse inicial: ${summary.interest}` : null,
   ].filter(Boolean).join('\n');
 }
 

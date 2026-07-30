@@ -53,6 +53,7 @@ export const config = {
   preferredAnswerChars: Number(process.env.PREFERRED_ANSWER_CHARS || '700'),
   conversationStatePath: resolve(process.env.CONVERSATION_STATE_PATH || resolve(projectRoot, '.state/conversations.json')),
   handoffOutboxPath: resolve(process.env.HANDOFF_OUTBOX_PATH || resolve(projectRoot, '.outbox/qualified-leads.jsonl')),
+  commercialWhatsAppNumber: (process.env.COMMERCIAL_WHATSAPP_NUMBER || '5511967702212').replace(/\D/g, ''),
   chatbotApiHost: process.env.CHATBOT_API_HOST || '127.0.0.1',
   chatbotApiPort: Number(process.env.CHATBOT_API_PORT || '3000'),
   chatbotApiToken: process.env.CHATBOT_API_TOKEN || '',

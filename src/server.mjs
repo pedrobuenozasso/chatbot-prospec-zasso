@@ -122,7 +122,7 @@ async function handle(request, response) {
     json(response, 200, {
       status: 'ok',
       service: 'zasso-chatbot',
-      version: '0.4.0',
+      version: '0.5.0',
       languages: SUPPORTED_LANGUAGES,
       persistence: databaseStatus(),
     });

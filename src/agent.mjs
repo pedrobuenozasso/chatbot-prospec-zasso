@@ -7,7 +7,7 @@ import {
   STAGES,
 } from './conversation.mjs';
 import { config } from './config.mjs';
-import { queueQualifiedLead } from './handoff.mjs';
+import { commercialHandoff, queueQualifiedLead } from './handoff.mjs';
 import { normalizeLanguage, t } from './i18n.mjs';
 import { identifierFingerprint, recordEvent } from './observability.mjs';
 import { answer, assessQualificationReply, isPromptInjection } from './rag.mjs';
@@ -25,6 +25,22 @@ function needsGreeting(state, answerText) {
 
 function humanizedProgress(progress) {
   return [progress.acknowledgement, progress.nextQuestion].filter(Boolean).join(' ');
+}
+
+function rememberInitialInterest(state, text) {
+  if (state.initialInterest) return;
+  const cleaned = String(text)
+    .replace(/[\u0000-\u001F\u007F]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 180);
+  if (!cleaned) return;
+  const genericOpening = /^(ol[aá]|oi|bom dia|boa tarde|boa noite|hello|hi|hey|good (morning|afternoon|evening)|hallo|guten tag|bonjour|salut|bonsoir|hola|buenos d[ií]as|buenas tardes|buenas noches)[!. ]*$/iu;
+  const qualificationOnly = /^(agro|agroneg[oó]cio|agriculture|landwirtschaft|agricultura|urbano|urbana|urban|urbain|st[aä]dtisch)[!. ]*$/iu;
+  const smallTalkOpening = /^(ol[aá]|oi|hello|hi|hey|hallo|bonjour|salut|hola)[,!. ]+(tudo bem|como vai|how are you|wie geht'?s|comment allez-vous|ça va|como est[aá]s)[?!. ]*$/iu;
+  if (!genericOpening.test(cleaned) && !smallTalkOpening.test(cleaned) && !qualificationOnly.test(cleaned)) {
+    state.initialInterest = cleaned;
+  }
 }
 
 function messageFingerprint(messageId) {
@@ -62,7 +78,13 @@ function response(state, messages, extra = {}) {
 }
 
 async function finishQualification(conversationId, state) {
-  if (state.handoffStatus === 'queued') return;
+  if (state.handoffStatus === 'queued' && state.handoffProtocol) {
+    return {
+      status: state.handoffStatus,
+      protocol: state.handoffProtocol,
+      commercial: commercialHandoff(state),
+    };
+  }
   const result = queueQualifiedLead(state);
   state.handoffStatus = result.status;
   recordEvent('lead_qualified', {
@@ -70,6 +92,7 @@ async function finishQualification(conversationId, state) {
     segment: state.qualification.segment,
     handoffStatus: result.status,
   });
+  return result;
 }
 
 export async function processInboundMessage({
@@ -124,6 +147,7 @@ export async function processInboundMessage({
 
     const assessment = await assessQualificationReply(state.stage, cleanedText, state.language);
     if (assessment.kind === 'question') {
+      rememberInitialInterest(state, cleanedText);
       const result = await answer(cleanedText, state.language);
       state.language = result.language;
       saveProgress(conversationId, state, messageId);
@@ -139,10 +163,11 @@ export async function processInboundMessage({
 
     const progress = advanceQualification(state, cleanedText, state.language);
     if (progress.completed) {
-      await finishQualification(conversationId, progress.state);
+      const handoff = await finishQualification(conversationId, progress.state);
       saveProgress(conversationId, progress.state, messageId);
       return response(progress.state, [
         `${progress.acknowledgement} ${t(state.language, 'completed')}`.trim(),
+        `${t(state.language, 'commercialCta')}\n\n${handoff.commercial.url}`,
       ], { qualified: true });
     }
     saveProgress(conversationId, progress.state, messageId);
@@ -150,6 +175,7 @@ export async function processInboundMessage({
   }
 
   const result = await answer(cleanedText, state.language);
+  rememberInitialInterest(state, cleanedText);
   state.language = result.language;
   const reply = needsGreeting(state, result.answer)
     ? `${t(result.language, 'greeting')} ${result.answer}`

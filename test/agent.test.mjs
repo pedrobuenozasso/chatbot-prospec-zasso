@@ -47,6 +47,8 @@ test('núcleo independente de canal qualifica, deduplica e não reinicia após h
   result = await processInboundMessage({ conversationId, messageId: 'message-5', text: '10 hectares', firstName: 'Ana' });
   assert.equal(result.qualified, true);
   assert.equal(result.stage, 'completed');
+  assert.equal(result.messages.length, 2);
+  assert.match(result.messages[1], /https:\/\/wa\.me\/5511967702212\?text=/);
   assert.equal(existsSync(process.env.HANDOFF_OUTBOX_PATH), true);
   assert.match(readFileSync(process.env.HANDOFF_OUTBOX_PATH, 'utf8'), /Agronegócio/);
 
@@ -87,4 +89,24 @@ test('API interna exige autenticação e valida o contrato do n8n', () => {
   );
   assert.deepEqual(validateApiPayload(payload), payload);
   assert.throws(() => validateApiPayload({ ...payload, messageId: '' }), /missing_required_fields/);
+});
+
+test('leva a dúvida inicial de preço no resumo comercial sem levar uma saudação isolada', async () => {
+  const conversationId = 'whatsapp:test:5511666666666@s.whatsapp.net';
+  let result = await processInboundMessage({
+    conversationId,
+    messageId: 'price-1',
+    text: 'Olá, qual o valor?',
+    firstName: 'Dani',
+    language: 'pt-BR',
+  });
+  assert.equal(result.stage, 'segment');
+
+  result = await processInboundMessage({ conversationId, messageId: 'price-2', text: 'Urbano', firstName: 'Dani' });
+  result = await processInboundMessage({ conversationId, messageId: 'price-3', text: 'Campinas/SP', firstName: 'Dani' });
+  result = await processInboundMessage({ conversationId, messageId: 'price-4', text: 'Prefeitura', firstName: 'Dani' });
+
+  assert.equal(result.qualified, true);
+  const prefilled = new URL(result.messages[1].match(/https:\/\/wa\.me\/\S+/)[0]).searchParams.get('text');
+  assert.match(prefilled, /• Interesse: Olá, qual o valor\?/);
 });

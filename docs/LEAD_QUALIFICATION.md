@@ -8,8 +8,8 @@
 4. Para ambos os segmentos, registra a região/cidade.
 5. Para **agro**, coleta cultivo/aplicação e área aproximada em hectares.
 6. Para **urbano**, coleta o perfil: prefeitura, prestador de serviços ou outro.
-7. Ao concluir, gera um protocolo `ZAS-...` e coloca o resumo na fila interna
-   de atendimento.
+7. Ao concluir, gera um protocolo `ZAS-...`, grava o resumo e entrega ao lead
+   um link para continuar no WhatsApp comercial.
 
 O bot faz uma pergunta por vez. Se não conseguir responder a dúvida inicial com
 segurança, transforma a resposta em continuidade comercial. Em perguntas sobre
@@ -34,7 +34,7 @@ e espanhol. O idioma detectado fica no estado da conversa, por isso respostas
 curtas como “agro”, “Weizen” ou “80 hectares” não fazem o bot voltar ao idioma
 padrão.
 
-## Persistência e futura passagem ao comercial
+## Persistência e passagem ao comercial
 
 Durante a transição, o MVP mantém a fila `.outbox/` como contingência e
 sincroniza no PostgreSQL:
@@ -44,7 +44,19 @@ sincroniza no PostgreSQL:
 - campos confirmados em `chatbot_leads`;
 - protocolo e resumo em `chatbot_handoffs`.
 
-O próximo passo do handoff é gerar um link para o número de WhatsApp atendido
-no Salesforce. O próprio lead abre o link e envia uma mensagem curta contendo
-o protocolo e o resumo. A conversa anterior não é transferida automaticamente;
-o banco preserva o histórico completo para auditoria e evolução da integração.
+O número de destino é definido por `COMMERCIAL_WHATSAPP_NUMBER`, no formato
+internacional e somente com dígitos. Para o número brasileiro `(11)
+96770-2212`, por exemplo, o valor é `5511967702212`.
+
+O próprio lead abre o link `wa.me` e encontra uma mensagem curta já preenchida
+em seu idioma. Por segurança do WhatsApp, ele ainda precisa tocar em **Enviar**.
+O resumo inclui somente os campos confirmados:
+
+- segmento e região;
+- cultivo/aplicação e área, quando agro;
+- perfil de atuação, quando urbano;
+- interesse inicial, quando houver algo além de uma saudação;
+- protocolo.
+
+Campos ausentes e a conversa completa não são colocados no link. O histórico
+continua preservado no banco para auditoria e para a evolução da integração.

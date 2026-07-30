@@ -28,6 +28,7 @@ export function newConversation(contact = {}) {
     greeted: false,
     language: normalizeLanguage(contact.language),
     handoffStatus: 'not_ready',
+    initialInterest: '',
     contact: { firstName: contact.firstName || '' },
     qualification: { segment: null, region: null, crop: null, area: null, areaHectares: null, urbanProfile: null },
     createdAt: new Date().toISOString(),
@@ -42,6 +43,11 @@ export function conversationStorageKey(chatId) {
 function sanitizedState(state) {
   state.language = normalizeLanguage(state.language);
   state.contact = { firstName: state.contact?.firstName || '' };
+  state.initialInterest = String(state.initialInterest || '')
+    .replace(/[\u0000-\u001F\u007F]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 180);
   return state;
 }
 

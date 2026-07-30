@@ -21,12 +21,17 @@ O MVP é adequado para demonstração controlada e chat privado autorizado. Ele 
 - **Webhook WhatsApp autenticado:** Evolution, n8n e chatbot usam segredos diferentes; o workflow exportado não contém credenciais.
 - **Idempotência:** cada `messageId` é guardado somente como hash e reentregas da Evolution não geram uma segunda resposta.
 - **Isolamento de canal:** eventos `fromMe`, grupos, status e newsletters são descartados no n8n antes de chegar ao agente.
+- **Handoff mínimo:** o link comercial contém somente protocolo e dados de
+  qualificação confirmados; telefone, credenciais e histórico completo não
+  entram na mensagem pré-preenchida.
 
 ## Dados persistidos no piloto
 
 - Estado da conversa: estágio, idioma, primeiro nome e respostas da qualificação.
 - Fila de handoff: primeiro nome, segmento, região, cultivo/uso, área ou perfil urbano.
-- Eventos: horário, tipo do evento e fingerprints; sem conteúdo bruto.
+- Histórico operacional no PostgreSQL: mensagens recebidas e enviadas, com
+  acesso restrito ao serviço do chatbot.
+- Logs técnicos: horário, tipo do evento e fingerprints; sem conteúdo bruto.
 
 Esses arquivos ficam em `.state/`, `.outbox/` e `.logs/`, todos ignorados pelo
 Git. O primeiro nome e os dados comerciais ainda são dados pessoais ou
@@ -44,6 +49,9 @@ criptografado, com acesso por função, retenção definida e trilha de auditori
 - A busca lexical multilíngue cobre termos prioritários. Embeddings
   multilíngues e uma avaliação adversarial contínua são recomendados antes de
   tráfego público.
+- O texto pré-preenchido faz parte da URL `wa.me` e pode aparecer no histórico
+  do navegador e do próprio WhatsApp. Por isso ele não deve receber dados
+  sensíveis nem a transcrição completa.
 
 ## Checklist antes de abrir além do piloto
 
