@@ -127,7 +127,7 @@
         "sendBody": true,
         "contentType": "raw",
         "rawContentType": "application/json",
-        "body": "={{ JSON.stringify({ number: $json.number, textMessage: { text: $json.text }, delay: $json.delay, linkPreview: false }) }}",
+        "body": "={{ JSON.stringify({ number: $json.number, text: $json.text, delay: $json.delay, linkPreview: false }) }}",
         "options": {
           "timeout": 30000
         }
