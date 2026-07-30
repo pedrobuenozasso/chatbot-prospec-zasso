@@ -60,3 +60,9 @@ O resumo inclui somente os campos confirmados:
 
 Campos ausentes e a conversa completa não são colocados no link. O histórico
 continua preservado no banco para auditoria e para a evolução da integração.
+
+Depois que o link é entregue, a triagem é considerada encerrada. Qualquer nova
+mensagem recebe somente um lembrete para continuar com o time comercial pelo
+link já enviado; o modelo de IA não é consultado novamente. O comando `/reset`
+permanece disponível para iniciar uma nova triagem em testes ou quando houver
+uma necessidade real de recomeçar.

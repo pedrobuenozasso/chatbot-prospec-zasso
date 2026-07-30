@@ -336,7 +336,8 @@ export function localQualificationAssessment(stage, text) {
       : { kind: 'invalid' };
   }
   if (stage === 'region') {
-    return /,|\b[a-z]{2}\b|^[a-z]{6,}(?:\s+[a-z]{3,})*$|\b(mato grosso|sao paulo|minas gerais|rio de janeiro|rio grande do sul|parana|goias|bahia|pernambuco|ceara|santa catarina)\b/.test(normalized)
+    const capitalizedPlace = /^\p{Lu}[\p{L}\p{M}'’.-]{2,}(?:\s+\p{Lu}[\p{L}\p{M}'’.-]{2,})*$/u.test(String(text).trim());
+    return capitalizedPlace || /,|\b[a-z]{2}\b|^[a-z]{6,}(?:\s+[a-z]{3,})*$|\b(mato grosso|sao paulo|minas gerais|rio de janeiro|rio grande do sul|parana|goias|bahia|pernambuco|ceara|santa catarina)\b/.test(normalized)
       ? { kind: 'answer' }
       : { kind: 'invalid' };
   }

@@ -55,6 +55,21 @@ test('núcleo independente de canal qualifica, deduplica e não reinicia após h
   result = await processInboundMessage({ conversationId, messageId: 'message-6', text: 'Obrigado', firstName: 'Ana' });
   assert.equal(result.stage, 'completed');
   assert.equal(result.messages.length, 1);
+  assert.match(result.messages[0], /time comercial pelo link que enviei acima/i);
+
+  result = await processInboundMessage({ conversationId, messageId: 'message-7', text: 'A tecnologia é segura?', firstName: 'Ana' });
+  assert.equal(result.stage, 'completed');
+  assert.equal(result.messages.length, 1);
+  assert.match(result.messages[0], /time comercial pelo link que enviei acima/i);
+  assert.doesNotMatch(result.messages[0], /alta tensão|equipamento|operador/i);
+
+  result = await processInboundMessage({ conversationId, messageId: 'message-8', text: '/help', firstName: 'Ana' });
+  assert.equal(result.stage, 'completed');
+  assert.match(result.messages[0], /time comercial pelo link que enviei acima/i);
+
+  result = await processInboundMessage({ conversationId, messageId: 'message-9', text: '/reset', firstName: 'Ana' });
+  assert.equal(result.reset, true);
+  assert.equal(result.stage, 'new');
 });
 
 test('prompt injection não avança a qualificação', async () => {
@@ -109,4 +124,102 @@ test('leva a dúvida inicial de preço no resumo comercial sem levar uma saudaç
   assert.equal(result.qualified, true);
   const prefilled = new URL(result.messages[1].match(/https:\/\/wa\.me\/\S+/)[0]).searchParams.get('text');
   assert.match(prefilled, /• Interesse: Olá, qual o valor\?/);
+});
+
+test('conclui e redireciona o pós-handoff no idioma da conversa', async () => {
+  const examples = [
+    {
+      language: 'pt-BR',
+      greeting: 'Olá!',
+      replies: ['Agronegócio', 'Campinas/SP', 'Soja', '10 hectares'],
+      completed: /Já organizei suas informações/,
+      cta: /Toque no link abaixo/,
+      prefill: /Resumo do meu atendimento/,
+      reminder: /time comercial pelo link que enviei acima/,
+    },
+    {
+      language: 'en-US',
+      greeting: 'Hello!',
+      replies: ['Agriculture', 'London', 'Wheat', '10 hectares'],
+      completed: /organized your information/,
+      cta: /Tap the link below/,
+      prefill: /Summary of my request/,
+      reminder: /sales team using the link I sent above/,
+    },
+    {
+      language: 'de-DE',
+      greeting: 'Hallo!',
+      replies: ['Landwirtschaft', 'Berlin', 'Weizen', '10 Hektar'],
+      completed: /Angaben zusammengestellt/,
+      cta: /Tippen Sie auf den Link/,
+      prefill: /Zusammenfassung meiner Anfrage/,
+      reminder: /Vertriebsteam über den oben gesendeten Link/,
+    },
+    {
+      language: 'fr-FR',
+      greeting: 'Bonjour !',
+      replies: ['Agriculture', 'Lyon', 'Blé', '10 hectares'],
+      completed: /organisé vos informations/,
+      cta: /Touchez le lien ci-dessous/,
+      prefill: /Résumé de ma demande/,
+      reminder: /équipe commerciale à l’aide du lien envoyé ci-dessus/,
+    },
+    {
+      language: 'es-ES',
+      greeting: '¡Hola!',
+      replies: ['Agricultura', 'Madrid', 'Trigo', '10 hectáreas'],
+      completed: /organicé tu información/,
+      cta: /Toca el siguiente enlace/,
+      prefill: /Resumen de mi consulta/,
+      reminder: /equipo comercial mediante el enlace que envié arriba/,
+    },
+  ];
+
+  for (const [index, example] of examples.entries()) {
+    const conversationId = `whatsapp:language:${index}@s.whatsapp.net`;
+    let result = await processInboundMessage({
+      conversationId,
+      messageId: `language-${index}-0`,
+      text: example.greeting,
+      firstName: 'Lead',
+      language: example.language,
+    });
+    for (const [replyIndex, text] of example.replies.entries()) {
+      result = await processInboundMessage({
+        conversationId,
+        messageId: `language-${index}-${replyIndex + 1}`,
+        text,
+        firstName: 'Lead',
+        language: example.language,
+      });
+    }
+
+    assert.equal(result.language, example.language);
+    assert.equal(result.stage, 'completed');
+    assert.match(result.messages[0], example.completed);
+    assert.match(result.messages[1], example.cta);
+    const prefilled = new URL(result.messages[1].match(/https:\/\/wa\.me\/\S+/)[0]).searchParams.get('text');
+    assert.match(prefilled, example.prefill);
+
+    const postHandoff = await processInboundMessage({
+      conversationId,
+      messageId: `language-${index}-after`,
+      text: 'Is it safe?',
+      firstName: 'Lead',
+      language: example.language,
+    });
+    assert.equal(postHandoff.language, example.language);
+    assert.equal(postHandoff.messages.length, 1);
+    assert.match(postHandoff.messages[0], example.reminder);
+
+    const reset = await processInboundMessage({
+      conversationId,
+      messageId: `language-${index}-reset`,
+      text: '/reset',
+      firstName: 'Lead',
+      language: 'pt-BR',
+    });
+    assert.equal(reset.language, example.language);
+    assert.equal(reset.stage, 'new');
+  }
 });

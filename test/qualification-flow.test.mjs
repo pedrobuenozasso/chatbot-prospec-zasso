@@ -71,6 +71,14 @@ test('não avança quando a resposta é inválida para o campo atual', () => {
   assert.equal(localQualificationAssessment('urban_profile', 'talvez').kind, 'invalid');
 });
 
+test('aceita cidades curtas capitalizadas sem aceitar termos bloqueados', () => {
+  for (const city of ['Lyon', 'Bonn', 'Paris', 'Itu', 'Jaú']) {
+    assert.equal(localQualificationAssessment('region', city).kind, 'answer');
+  }
+  assert.equal(localQualificationAssessment('region', 'Mato').kind, 'invalid');
+  assert.equal(localQualificationAssessment('region', 'Celular').kind, 'invalid');
+});
+
 test('identifica perguntas no meio de qualquer etapa e preserva o estágio', () => {
   const questions = [
     ['segment', 'O que é a Zasso?'],

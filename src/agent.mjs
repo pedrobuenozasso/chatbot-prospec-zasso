@@ -116,11 +116,20 @@ export async function processInboundMessage({
 
   const command = cleanedText.toLocaleLowerCase();
   if (RESET_COMMANDS.has(command)) {
+    const resetLanguage = state.language || languageHint;
     resetConversation(conversationId);
-    state = getConversation(conversationId, { firstName, language: languageHint });
+    state = getConversation(conversationId, { firstName, language: resetLanguage });
     rememberMessage(state, messageId);
     saveConversation(conversationId, state);
-    return response(state, [`${t(languageHint, 'welcome')}\n\n${t(languageHint, 'reset')}`], { reset: true });
+    return response(state, [`${t(resetLanguage, 'welcome')}\n\n${t(resetLanguage, 'reset')}`], { reset: true });
+  }
+  if (state.stage === STAGES.COMPLETED) {
+    saveProgress(conversationId, state, messageId);
+    recordEvent('post_handoff_redirected', {
+      conversationFingerprint: identifierFingerprint(conversationId),
+      handoffStatus: state.handoffStatus,
+    });
+    return response(state, [t(state.language, 'postHandoffReminder')]);
   }
   if (command === '/help') {
     rememberMessage(state, messageId);
@@ -182,19 +191,10 @@ export async function processInboundMessage({
     : result.answer;
   state.greeted = true;
 
-  if (state.stage === STAGES.NEW) {
-    state.stage = STAGES.SEGMENT;
-    saveProgress(conversationId, state, messageId);
-    return response(state, [
-      `${reply}${sourceList(result.sources, result.language)}`.slice(0, 4000),
-      qualificationQuestion(STAGES.SEGMENT, result.language),
-    ]);
-  }
-
-  // Depois do handoff, o bot ainda pode esclarecer uma dúvida, mas não reinicia
-  // silenciosamente a qualificação. Um novo funil exige /reset.
+  state.stage = STAGES.SEGMENT;
   saveProgress(conversationId, state, messageId);
   return response(state, [
     `${reply}${sourceList(result.sources, result.language)}`.slice(0, 4000),
+    qualificationQuestion(STAGES.SEGMENT, result.language),
   ]);
 }
