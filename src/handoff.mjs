@@ -21,7 +21,7 @@ function createProtocol() {
 
 function safeLine(value, maximumLength = 180) {
   return String(value || '')
-    .replace(/[\u0000-\u001F\u007F]+/g, ' ')
+    .replace(/[\p{Cc}\p{Cf}\p{Zl}\p{Zp}]+/gu, ' ')
     .replace(/\s+/g, ' ')
     .trim()
     .slice(0, maximumLength);

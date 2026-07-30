@@ -14,6 +14,9 @@ O MVP é adequado para demonstração controlada e chat privado autorizado. Ele 
 - **Prompt injection antes do modelo:** tentativas comuns em português, inglês, alemão, francês e espanhol são normalizadas e recusadas antes do Worker, inclusive durante a qualificação.
 - **Isolamento no prompt:** pergunta e evidência ficam em blocos delimitados e são declaradas como dados não confiáveis; nenhuma instrução dentro deles pode alterar o papel do agente.
 - **Proteção da saída:** respostas com indícios de token, endpoint, variável de segredo, prompt de sistema ou instrução interna são descartadas e substituídas por uma resposta segura.
+- **Resumo comercial sanitizado:** tentativas de prompt injection não entram no
+  campo de interesse do handoff, e caracteres invisíveis de controle/formatação
+  são removidos antes de criar o link.
 - **Saída de rede restrita:** o token do Worker só pode ser enviado por HTTPS ao host `ai.sacf.io`; uma URL diferente é recusada antes da requisição.
 - **Abuso:** limite local por chat, mensagem máxima e contexto máximo enviado ao worker.
 - **Privacidade operacional:** logs locais usam hashes de pergunta e conversa; não gravam texto nem tokens. O estado usa hash do identificador de Telegram/WhatsApp e não persiste `username` ou telefone em claro.

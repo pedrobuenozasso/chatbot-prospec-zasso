@@ -29,12 +29,23 @@ const PROMPT_INJECTION_PATTERNS = [
   /\b(montre|revele|affiche|imprime)\b.{0,35}\b(prompt|systeme|instructions?|secrets?|jetons?|identifiants?)\b/,
   /\b(zeige|offenlege|drucke)\b.{0,35}\b(system|prompt|anweisungen?|geheimnisse?|token|zugangsdaten)\b/,
   /\b(you are now|voce e agora|ahora eres|tu es maintenant|du bist jetzt)\b/,
+  /\b(disregard|override|bypass)\b.{0,40}\b(rules?|instructions?|polic(?:y|ies)|guardrails?|system)\b/,
+  /\b(desconsidere|ignore|contorne|burle)\b.{0,40}\b(regras?|politicas?|guardrails?|sistema|instrucoes?)\b/,
+  /\b(ignora|omite|elude)\b.{0,40}\b(reglas?|politicas?|sistema|instrucciones?)\b/,
+  /\b(ignore|oublie|contourne)\b.{0,40}\b(regles?|politiques?|systeme|instructions?)\b/,
+  /\b(ignoriere|umgehe|vergiss)\b.{0,40}\b(regeln?|richtlinien?|system|anweisungen?)\b/,
+  /\b(act as|pretend to be|roleplay as|finja ser|finge ser|agis comme|tu so als)\b/,
   /\b(jailbreak|developer message|system prompt|prompt injection)\b/,
 ];
 const SENSITIVE_OUTPUT_PATTERNS = [
   /\bBearer\s+[^\s]{8,}/i,
-  /\b(TELEGRAM_BOT_TOKEN|SACF_AI_SERVICE_TOKEN|authorization)\b/i,
+  /\b(TELEGRAM_BOT_TOKEN|SACF_AI_SERVICE_TOKEN|CHATBOT_API_TOKEN|CLOUDSQL_DB_PASSWORD|DATABASE_PASSWORD|PGPASSWORD|EVOLUTION_API_KEY|WEBHOOK_SECRET|authorization)\b/i,
+  /\b(api[_ -]?key|password|passwd|secret|token)\s*[:=]\s*[^\s]{8,}/i,
+  /-----BEGIN (?:RSA |OPENSSH |EC )?PRIVATE KEY-----/i,
+  /\b\d{8,10}:AA[A-Za-z0-9_-]{20,}\b/,
   /https?:\/\/ai\.sacf\.io\/v1\//i,
+  /https?:\/\/(?:zasso-chatbot|cloudsql-proxy-pool|sacf-pgbouncer)(?::\d+)?/i,
+  /(?:^|\s)(?:\/docker\/|\/app\/|\.env\b|knowledge\/public-faq\/|src\/[\w./-]+)/i,
   /\b(system prompt|developer message|internal instructions?|prompt do sistema|instrucoes internas|instructions internes|systemanweisungen)\b/i,
 ];
 let indexCache;
@@ -388,8 +399,8 @@ const LANGUAGE_SIGNALS = Object.freeze({
   'pt-BR': ['voce', 'voces', 'como', 'qual', 'quais', 'onde', 'quanto', 'preco', 'regiao', 'obrigado', 'obrigada', 'ola', 'capina', 'eletrica', 'trabalha', 'tenho', 'atua', 'gostaria', 'seguranca'],
   'en-US': ['what', 'where', 'when', 'why', 'how', 'does', 'are', 'can', 'could', 'please', 'hello', 'thanks', 'products', 'technology', 'electrical', 'weeding', 'safety', 'price', 'operate', 'works'],
   'de-DE': ['was', 'wo', 'wann', 'warum', 'wie', 'welche', 'ist', 'sind', 'preis', 'danke', 'hallo', 'unkraut', 'elektrisch', 'arbeiten', 'flache', 'landwirt', 'landwirtschaft', 'sicherheit', 'funktioniert', 'totet', 'regenwurmer', 'boden'],
-  'fr-FR': ['vous', 'comment', 'quel', 'quelle', 'ou', 'combien', 'est', 'ce', 'prix', 'merci', 'bonjour', 'desherbage', 'electrique', 'travaillez', 'superficie', 'agriculture', 'securite', 'cela', 'affecte', 'terre', 'municipalite'],
-  'es-ES': ['usted', 'ustedes', 'como', 'cual', 'donde', 'cuanto', 'es', 'precio', 'gracias', 'hola', 'deshierbe', 'electrico', 'trabaja', 'tengo', 'actua', 'seguridad', 'afecta', 'lombrices', 'suelo', 'municipio'],
+  'fr-FR': ['vous', 'comment', 'quel', 'quelle', 'ou', 'combien', 'est', 'ce', 'prix', 'merci', 'bonjour', 'desherbage', 'electrique', 'technologie', 'fonctionne', 'laisse', 'residus', 'vignobles', 'vignes', 'travaillez', 'superficie', 'agriculture', 'securite', 'cela', 'affecte', 'terre', 'municipalite'],
+  'es-ES': ['usted', 'ustedes', 'como', 'cual', 'donde', 'cuanto', 'es', 'precio', 'gracias', 'hola', 'deshierbe', 'electrico', 'electrica', 'tecnologia', 'funciona', 'vinedos', 'cultivos', 'productos', 'residuos', 'trabaja', 'tengo', 'actua', 'seguridad', 'afecta', 'lombrices', 'suelo', 'municipio'],
 });
 
 function normalizedSecurityText(text) {
@@ -485,7 +496,7 @@ export function removeOpeningGreeting(text) {
     .trim();
 }
 
-function containsSensitiveOutput(text) {
+export function containsSensitiveOutput(text) {
   return SENSITIVE_OUTPUT_PATTERNS.some((pattern) => pattern.test(text));
 }
 

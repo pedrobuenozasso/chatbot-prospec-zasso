@@ -30,7 +30,7 @@ function humanizedProgress(progress) {
 function rememberInitialInterest(state, text) {
   if (state.initialInterest) return;
   const cleaned = String(text)
-    .replace(/[\u0000-\u001F\u007F]+/g, ' ')
+    .replace(/[\p{Cc}\p{Cf}\p{Zl}\p{Zp}]+/gu, ' ')
     .replace(/\s+/g, ' ')
     .trim()
     .slice(0, 180);
@@ -184,7 +184,7 @@ export async function processInboundMessage({
   }
 
   const result = await answer(cleanedText, state.language);
-  rememberInitialInterest(state, cleanedText);
+  if (!isPromptInjection(cleanedText)) rememberInitialInterest(state, cleanedText);
   state.language = result.language;
   const reply = needsGreeting(state, result.answer)
     ? `${t(result.language, 'greeting')} ${result.answer}`

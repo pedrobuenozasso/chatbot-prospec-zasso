@@ -44,7 +44,7 @@ function sanitizedState(state) {
   state.language = normalizeLanguage(state.language);
   state.contact = { firstName: state.contact?.firstName || '' };
   state.initialInterest = String(state.initialInterest || '')
-    .replace(/[\u0000-\u001F\u007F]+/g, ' ')
+    .replace(/[\p{Cc}\p{Cf}\p{Zl}\p{Zp}]+/gu, ' ')
     .replace(/\s+/g, ' ')
     .trim()
     .slice(0, 180);
