@@ -1,0 +1,35 @@
+services:
+  zasso-chatbot:
+    depends_on:
+      - cloud-sql-proxy
+    environment:
+      DATABASE_ENABLED: "true"
+      DATABASE_REQUIRED: "${DATABASE_REQUIRED:-false}"
+      DATABASE_HOST: cloud-sql-proxy
+      DATABASE_PORT: 5432
+      DATABASE_NAME: "${CLOUDSQL_DB_NAME}"
+      DATABASE_USER: "${CLOUDSQL_DB_USER}"
+      DATABASE_PASSWORD: "${CLOUDSQL_DB_PASSWORD}"
+      DATABASE_SCHEMA: "${CLOUDSQL_DB_SCHEMA:-public}"
+      DATABASE_SSL_MODE: disable
+    networks:
+      - n8n
+      - database
+
+  cloud-sql-proxy:
+    image: gcr.io/cloud-sql-connectors/cloud-sql-proxy:2.22.0
+    container_name: zasso-cloud-sql-proxy
+    restart: unless-stopped
+    command:
+      - "--address=0.0.0.0"
+      - "--port=5432"
+      - "--credentials-file=/secrets/cloudsql-service-account.json"
+      - "${CLOUDSQL_INSTANCE_CONNECTION_NAME}"
+    volumes:
+      - "${CLOUDSQL_CREDENTIALS_FILE:-./secrets/cloudsql-service-account.json}:/secrets/cloudsql-service-account.json:ro"
+    networks:
+      - database
+
+networks:
+  database:
+    name: zasso-chatbot-database

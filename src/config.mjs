@@ -19,6 +19,20 @@ function loadDotEnv() {
 
 loadDotEnv();
 
+function booleanEnvironment(name, fallback = false) {
+  const value = process.env[name];
+  if (value === undefined) return fallback;
+  return value.toLocaleLowerCase() === 'true';
+}
+
+function databaseSchema(value) {
+  const schema = value || 'public';
+  if (!/^[a-z_][a-z0-9_]*$/i.test(schema)) {
+    throw new Error('DATABASE_SCHEMA deve conter somente letras, números e underscore.');
+  }
+  return schema;
+}
+
 export const config = {
   faqDirectory: resolve(projectRoot, 'knowledge/public-faq'),
   indexPath: resolve(projectRoot, '.index/faq-index.json'),
@@ -50,6 +64,17 @@ export const config = {
   replyTypingMinMs: Number(process.env.REPLY_TYPING_MIN_MS || '900'),
   replyTypingMaxMs: Number(process.env.REPLY_TYPING_MAX_MS || '2200'),
   showSources: (process.env.SHOW_SOURCES || 'false').toLocaleLowerCase() === 'true',
+  databaseEnabled: booleanEnvironment('DATABASE_ENABLED'),
+  databaseRequired: booleanEnvironment('DATABASE_REQUIRED'),
+  databaseHost: process.env.DATABASE_HOST || process.env.PGHOST || 'cloud-sql-proxy',
+  databasePort: Number(process.env.DATABASE_PORT || process.env.PGPORT || '5432'),
+  databaseName: process.env.DATABASE_NAME || process.env.CLOUDSQL_DB_NAME || process.env.PGDATABASE || '',
+  databaseUser: process.env.DATABASE_USER || process.env.CLOUDSQL_DB_USER || process.env.PGUSER || '',
+  databasePassword: process.env.DATABASE_PASSWORD || process.env.CLOUDSQL_DB_PASSWORD || process.env.PGPASSWORD || '',
+  databaseSchema: databaseSchema(process.env.DATABASE_SCHEMA || process.env.CLOUDSQL_DB_SCHEMA),
+  databaseSslMode: (process.env.DATABASE_SSL_MODE || process.env.PGSSLMODE || 'disable').toLocaleLowerCase(),
+  databasePoolMax: Number(process.env.DATABASE_POOL_MAX || '5'),
+  databaseConnectTimeoutMs: Number(process.env.DATABASE_CONNECT_TIMEOUT_MS || '10000'),
   telegramToken: process.env.TELEGRAM_BOT_TOKEN || '',
   allowedChatIds: new Set(
     (process.env.TELEGRAM_ALLOWED_CHAT_IDS || '')

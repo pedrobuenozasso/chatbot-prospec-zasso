@@ -4,5 +4,6 @@
 .state/
 .outbox/
 node_modules/
+secrets/
 __pycache__/
 *.pyc

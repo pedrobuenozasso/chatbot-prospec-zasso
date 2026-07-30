@@ -92,6 +92,16 @@ Após o primeiro atendimento, o MVP coleta o perfil do lead de forma
 conversacional e prepara sua entrada na fila interna de atendimento. Veja o fluxo e a
 configuração em [LEAD_QUALIFICATION.md](docs/LEAD_QUALIFICATION.md).
 
+## Persistência no Cloud SQL
+
+O serviço Node ativo possui persistência híbrida: PostgreSQL como fonte
+durável e volumes locais como contingência durante a implantação. As migrations
+criam somente tabelas prefixadas com `chatbot_` e não exigem `pgvector`.
+
+O overlay Docker com Cloud SQL Auth Proxy e o procedimento de instalação estão
+em [CLOUD_SQL_SETUP.md](docs/CLOUD_SQL_SETUP.md). Segredos e credenciais de
+conta de serviço nunca pertencem ao repositório.
+
 ## Segurança
 
 Os guardrails e o checklist antes de abrir o bot além do piloto estão em [docs/SECURITY.md](docs/SECURITY.md). Para validar a recuperação das perguntas principais antes de uma demonstração:

@@ -1,12 +1,17 @@
 import { createServer } from 'node:http';
 import { timingSafeEqual } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
-import { processInboundMessage } from './agent.mjs';
 import { config } from './config.mjs';
 import { migrateConversationState } from './conversation.mjs';
+import {
+  closeDatabase,
+  databaseStatus,
+  initializeDatabase,
+} from './database.mjs';
 import { secureHandoffStorage } from './handoff.mjs';
 import { SUPPORTED_LANGUAGES } from './i18n.mjs';
 import { identifierFingerprint, recordEvent } from './observability.mjs';
+import { processInboundPersisted } from './persistence.mjs';
 
 const conversationsInFlight = new Map();
 const requestsByConversation = new Map();
@@ -117,8 +122,9 @@ async function handle(request, response) {
     json(response, 200, {
       status: 'ok',
       service: 'zasso-chatbot',
-      version: '0.3.0',
+      version: '0.4.0',
       languages: SUPPORTED_LANGUAGES,
+      persistence: databaseStatus(),
     });
     return;
   }
@@ -145,7 +151,7 @@ async function handle(request, response) {
     return;
   }
 
-  const result = await serialized(payload.conversationId, () => processInboundMessage(payload));
+  const result = await serialized(payload.conversationId, () => processInboundPersisted(payload));
   json(response, 200, result);
 }
 
@@ -162,24 +168,28 @@ export function createChatbotServer() {
   });
 }
 
-export function startChatbotServer() {
+export async function startChatbotServer() {
   if (config.chatbotApiToken.length < 32) {
     throw new Error('CHATBOT_API_TOKEN ausente ou curto. Use um segredo aleatório com pelo menos 32 caracteres.');
   }
   migrateConversationState();
   secureHandoffStorage();
+  await initializeDatabase();
   const server = createChatbotServer();
   server.requestTimeout = config.chatbotApiRequestTimeoutMs;
   server.headersTimeout = 15_000;
   server.listen(config.chatbotApiPort, config.chatbotApiHost, () => {
     console.log(`API do chatbot disponível em http://${config.chatbotApiHost}:${config.chatbotApiPort}`);
   });
+  server.on('close', () => {
+    closeDatabase().catch(() => undefined);
+  });
   return server;
 }
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
   try {
-    startChatbotServer();
+    await startChatbotServer();
   } catch (error) {
     console.error(error.message);
     process.exit(1);

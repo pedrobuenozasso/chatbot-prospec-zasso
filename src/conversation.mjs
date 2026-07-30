@@ -35,7 +35,7 @@ export function newConversation(contact = {}) {
   };
 }
 
-function conversationKey(chatId) {
+export function conversationStorageKey(chatId) {
   return createHash('sha256').update(`telegram:${chatId}`).digest('hex');
 }
 
@@ -62,11 +62,12 @@ function writeAll(conversations) {
   chmodSync(config.conversationStatePath, 0o600);
 }
 
-export function getConversation(chatId, contact) {
+export function findConversation(chatId, contact) {
   const conversations = readAll();
-  const key = conversationKey(chatId);
+  const key = conversationStorageKey(chatId);
   const legacyKey = String(chatId);
-  const state = conversations[key] || conversations[legacyKey] || newConversation(contact);
+  const state = conversations[key] || conversations[legacyKey];
+  if (!state) return null;
   state.language = normalizeLanguage(state.language || contact?.language);
   state.contact = { firstName: contact?.firstName || state.contact?.firstName || '' };
   // Migra silenciosamente estados antigos que ainda usavam o ID bruto do chat.
@@ -78,10 +79,14 @@ export function getConversation(chatId, contact) {
   return state;
 }
 
+export function getConversation(chatId, contact) {
+  return findConversation(chatId, contact) || newConversation(contact);
+}
+
 export function resetConversation(chatId) {
   const conversations = readAll();
   delete conversations[String(chatId)];
-  delete conversations[conversationKey(chatId)];
+  delete conversations[conversationStorageKey(chatId)];
   writeAll(conversations);
 }
 
@@ -90,7 +95,16 @@ export function saveConversation(chatId, state) {
   state.updatedAt = new Date().toISOString();
   sanitizedState(state);
   delete conversations[String(chatId)];
-  conversations[conversationKey(chatId)] = state;
+  conversations[conversationStorageKey(chatId)] = state;
+  writeAll(conversations);
+}
+
+export function restoreConversation(chatId, state) {
+  const conversations = readAll();
+  const restored = structuredClone(state);
+  sanitizedState(restored);
+  delete conversations[String(chatId)];
+  conversations[conversationStorageKey(chatId)] = restored;
   writeAll(conversations);
 }
 
@@ -101,7 +115,7 @@ export function migrateConversationState() {
   for (const [key, state] of Object.entries(conversations)) {
     sanitizedState(state);
     if (/^\d+$/.test(key)) {
-      conversations[conversationKey(key)] = state;
+      conversations[conversationStorageKey(key)] = state;
       delete conversations[key];
       migrated += 1;
     }

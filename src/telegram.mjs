@@ -1,10 +1,11 @@
-import { processInboundMessage } from './agent.mjs';
 import { config } from './config.mjs';
 import { migrateConversationState } from './conversation.mjs';
+import { closeDatabase, initializeDatabase } from './database.mjs';
 import { secureHandoffStorage } from './handoff.mjs';
 import { normalizeLanguage, t } from './i18n.mjs';
 import { identifierFingerprint, recordEvent } from './observability.mjs';
 import { typingDelayFor } from './pacing.mjs';
+import { processInboundPersisted } from './persistence.mjs';
 
 const telegramApi = `https://api.telegram.org/bot${config.telegramToken}`;
 const requestsByChat = new Map();
@@ -58,7 +59,8 @@ async function respond(message) {
   }
 
   try {
-    const result = await processInboundMessage({
+    const result = await processInboundPersisted({
+      channel: 'telegram',
       conversationId: chatId,
       messageId: String(message.message_id || ''),
       text,
@@ -87,6 +89,13 @@ if (config.allowedChatIds.size === 0) {
 
 migrateConversationState();
 secureHandoffStorage();
+await initializeDatabase();
+for (const signal of ['SIGINT', 'SIGTERM']) {
+  process.once(signal, async () => {
+    await closeDatabase().catch(() => undefined);
+    process.exit(0);
+  });
+}
 console.log('Bot Telegram iniciado por long polling. Use Ctrl+C para parar.');
 let offset = 0;
 while (true) {
