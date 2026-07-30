@@ -18,42 +18,16 @@ Esta etapa não exige `pgvector`.
 
 ## Conectividade recomendada
 
-O chatbot roda em uma VPS fora do Google Cloud. O deployment usa o
-[Cloud SQL Auth Proxy](https://cloud.google.com/sql/docs/postgres/connect-auth-proxy)
-como sidecar e não publica a porta do PostgreSQL no host.
+Esta VPS já possui o [Cloud SQL Auth
+Proxy](https://cloud.google.com/sql/docs/postgres/connect-auth-proxy)
+compartilhado `sacf-cloudsql-proxy-pool`, autenticado para a instância
+`sacf-db`. Ele está disponível somente na rede Docker interna `sacf-net`, pelo
+alias `cloudsql-proxy-pool:5432`.
 
-O Proxy precisa de:
-
-1. uma conta de serviço com `roles/cloudsql.client`;
-2. acesso de rede da VPS à instância;
-3. Public IP habilitado na instância, ou uma rota privada/VPN entre a VPS e a
-   VPC do Google Cloud.
-
-O Proxy autentica e criptografa o transporte, mas não cria sozinho uma rota
-para uma instância disponível exclusivamente por Private IP.
+O chatbot reutiliza essa rede e esse proxy. Ele não cria outra conta de
+serviço, não monta outro JSON e não publica a porta do PostgreSQL no host.
 
 ## Segredos na VPS
-
-Crie a pasta:
-
-```bash
-mkdir -p /docker/zasso-chatbot/secrets
-chmod 700 /docker/zasso-chatbot/secrets
-```
-
-Coloque a credencial da conta de serviço em:
-
-```text
-/docker/zasso-chatbot/secrets/cloudsql-service-account.json
-```
-
-Proteja o arquivo:
-
-```bash
-chmod 600 /docker/zasso-chatbot/secrets/cloudsql-service-account.json
-```
-
-Não envie esse JSON pelo chat e não o adicione ao Git.
 
 No arquivo `/docker/zasso-chatbot/.env`, configure:
 
@@ -63,7 +37,6 @@ CLOUDSQL_DB_NAME=zasso_chatbot
 CLOUDSQL_DB_USER=sacf_chatbot
 CLOUDSQL_DB_PASSWORD=SENHA_REAL
 CLOUDSQL_DB_SCHEMA=public
-CLOUDSQL_CREDENTIALS_FILE=./secrets/cloudsql-service-account.json
 
 DATABASE_REQUIRED=false
 ```
@@ -84,7 +57,7 @@ docker compose \
   up -d --build
 ```
 
-O chatbot se conecta a `cloud-sql-proxy:5432`. A porta não é exposta à
+O chatbot se conecta a `cloudsql-proxy-pool:5432`. A porta não é exposta à
 internet nem à interface da VPS.
 
 ## Verificação

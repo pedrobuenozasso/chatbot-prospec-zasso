@@ -20,9 +20,11 @@ test('migration operacional é aditiva e usa somente tabelas do chatbot', () => 
   assert.doesNotMatch(migration, /\b(DROP|TRUNCATE|DELETE\s+FROM|ALTER\s+TABLE)\b/i);
 });
 
-test('proxy do Cloud SQL não publica a porta do banco no host', () => {
-  assert.match(cloudSqlCompose, /cloud-sql-proxy:2\.22\.0/);
-  assert.match(cloudSqlCompose, /cloudsql-service-account\.json:ro/);
+test('deployment reutiliza o proxy interno sem publicar a porta do banco', () => {
+  assert.match(cloudSqlCompose, /DATABASE_HOST: cloudsql-proxy-pool/);
+  assert.match(cloudSqlCompose, /external: true/);
+  assert.match(cloudSqlCompose, /name: sacf-net/);
+  assert.doesNotMatch(cloudSqlCompose, /credentials-file|service-account\.json/);
   assert.doesNotMatch(cloudSqlCompose, /^\s*ports:/m);
   assert.doesNotMatch(cloudSqlCompose, /CLOUDSQL_DB_PASSWORD:\s*["']?[^${\s]/);
 });
