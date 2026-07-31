@@ -38,10 +38,11 @@ Na etapa de área, o lead também pode responder somente `80`, `100,5` ou outro
 número positivo. Como a pergunta já estabelece hectares, o bot acrescenta a
 unidade no resumo comercial sem obrigar a pessoa a digitá-la.
 
-Ligações recebidas não alteram o estágio da conversa. Quando o evento `CALL`
-chega pela Evolution, o bot responde por texto que não atende chamadas e pede
-que o lead escreva a dúvida no chat. Eventos repetidos da mesma chamada são
-deduplicados.
+Ligações recebidas não alteram o estágio da conversa. Na integração ativa, a
+Evolution rejeita a chamada e envia uma mensagem curta pedindo que o lead
+escreva no chat. Isso é feito nativamente porque chamadas podem chegar com
+identificador privado `@lid`; o workflow mantém suporte a `CALL` apenas como
+contingência.
 
 ## Persistência e passagem ao comercial
 

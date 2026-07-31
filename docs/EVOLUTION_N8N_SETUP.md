@@ -119,7 +119,7 @@ Copie a **Production URL** do node `Evolution Webhook`.
 
 ## 4. Ligar Evolution ao n8n
 
-Configure os eventos de mensagens e ligações:
+Configure o webhook somente para mensagens:
 
 ```bash
 curl -X POST "https://EVOLUTION_URL/webhook/set/zasso-piloto" \
@@ -129,7 +129,7 @@ curl -X POST "https://EVOLUTION_URL/webhook/set/zasso-piloto" \
     "webhook": {
       "enabled": true,
       "url": "N8N_PRODUCTION_WEBHOOK_URL",
-      "events": ["MESSAGES_UPSERT", "CALL"],
+      "events": ["MESSAGES_UPSERT"],
       "headers": {
         "x-zasso-webhook-secret": "MESMO_SEGREDO_DA_CREDENCIAL_N8N"
       },
@@ -143,10 +143,29 @@ O wrapper `webhook` é exigido pela Evolution API 2.3.7 instalada na VPS.
 O workflow ignora mensagens enviadas pelo próprio número, grupos, status,
 newsletters, mensagens sem texto e reentregas com o mesmo `messageId`.
 
-Quando recebe uma ligação, o workflow encaminha o evento `CALL` ao chatbot.
-O chatbot não inicia nem avança a qualificação: apenas envia uma mensagem curta
-explicando que o atendimento funciona por texto. O `callId` é usado para não
-responder duas vezes caso a Evolution reentregue o mesmo evento.
+Na Evolution API 2.3.7, chamadas podem chegar com um identificador privado
+`@lid` em vez do número do lead. Por isso, a rejeição da ligação e a mensagem de
+orientação ficam na própria Evolution, que consegue resolver esse identificador:
+
+```bash
+curl -X POST "https://EVOLUTION_URL/settings/set/zasso-piloto" \
+  -H "Content-Type: application/json" \
+  -H "apikey: EVOLUTION_API_KEY" \
+  -d '{
+    "rejectCall": true,
+    "msgCall": "Oi! Não consigo atender ligações. Pode mandar sua dúvida por mensagem aqui no WhatsApp?",
+    "groupsIgnore": false,
+    "alwaysOnline": false,
+    "readMessages": false,
+    "readStatus": false,
+    "syncFullHistory": false,
+    "wavoipToken": ""
+  }'
+```
+
+Mantenha `msgCall` curta: a versão instalada limita o tamanho desse campo. O
+workflow ainda entende `CALL` como contingência, mas esse evento não deve ser
+assinado quando `rejectCall` estiver habilitado, para evitar respostas duplicadas.
 
 ## 5. Roteiro de teste
 

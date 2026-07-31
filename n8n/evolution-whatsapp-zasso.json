@@ -3,7 +3,7 @@
   "nodes": [
     {
       "parameters": {
-        "content": "## Antes de ativar\n1. Crie uma credencial **Header Auth** para o webhook: header `x-zasso-webhook-secret`.\n2. Selecione essa credencial no node Webhook.\n3. Crie uma credencial Header Auth para o chatbot: `Authorization` = `Bearer SEU_CHATBOT_API_TOKEN`.\n4. Crie outra para a Evolution: `apikey` = sua chave da instância.\n5. Confirme as URLs dos nodes `Consultar Chatbot Zasso` e `Enviar pela Evolution` para o seu ambiente.\n6. Publique o workflow e configure os eventos `MESSAGES_UPSERT` e `CALL` na Evolution.",
+        "content": "## Antes de ativar\n1. Crie uma credencial **Header Auth** para o webhook: header `x-zasso-webhook-secret`.\n2. Selecione essa credencial no node Webhook.\n3. Crie uma credencial Header Auth para o chatbot: `Authorization` = `Bearer SEU_CHATBOT_API_TOKEN`.\n4. Crie outra para a Evolution: `apikey` = sua chave da instância.\n5. Confirme as URLs dos nodes `Consultar Chatbot Zasso` e `Enviar pela Evolution` para o seu ambiente.\n6. Publique o workflow e configure somente `MESSAGES_UPSERT` no webhook. Para ligações, habilite `rejectCall` e `msgCall` nas configurações da Evolution.",
         "height": 340,
         "width": 460,
         "color": 5
