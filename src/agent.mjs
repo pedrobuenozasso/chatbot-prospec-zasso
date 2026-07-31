@@ -10,7 +10,7 @@ import { config } from './config.mjs';
 import { commercialHandoff, queueQualifiedLead } from './handoff.mjs';
 import { normalizeLanguage, t } from './i18n.mjs';
 import { identifierFingerprint, recordEvent } from './observability.mjs';
-import { answer, assessQualificationReply, isPromptInjection } from './rag.mjs';
+import { answer, assessQualificationReply, isPromptInjection, partitionQualificationMessage } from './rag.mjs';
 
 const RESET_COMMANDS = new Set(['/start', '/reset', '/restart', '/reiniciar', '/neustart', '/recommencer']);
 
@@ -101,6 +101,7 @@ export async function processInboundMessage({
   text = '',
   firstName = '',
   language = 'pt-BR',
+  eventType = 'message',
 }) {
   const languageHint = normalizeLanguage(language);
   const cleanedText = String(text).trim();
@@ -112,6 +113,14 @@ export async function processInboundMessage({
       messageFingerprint: messageFingerprint(messageId),
     });
     return { duplicate: true, messages: [], language: state.language, stage: state.stage, handoffStatus: state.handoffStatus };
+  }
+
+  if (eventType === 'call') {
+    saveProgress(conversationId, state, messageId);
+    recordEvent('incoming_call_redirected_to_text', {
+      conversationFingerprint: identifierFingerprint(conversationId),
+    });
+    return response(state, [t(state.language || languageHint, 'callUnsupported')], { callRedirected: true });
   }
 
   const command = cleanedText.toLocaleLowerCase();
@@ -152,6 +161,28 @@ export async function processInboundMessage({
       const blocked = await answer(cleanedText, state.language);
       saveProgress(conversationId, state, messageId);
       return response(state, [blocked.answer, qualificationQuestion(state.stage, state.language)]);
+    }
+
+    const compound = partitionQualificationMessage(state.stage, cleanedText);
+    if (compound) {
+      rememberInitialInterest(state, compound.question);
+      const result = await answer(compound.question, state.language);
+      state.language = result.language;
+      const progress = advanceQualification(state, compound.answer, result.language);
+      const contentAnswer = `${result.answer}${sourceList(result.sources, result.language)}`.slice(0, 4000);
+
+      if (progress.completed) {
+        const handoff = await finishQualification(conversationId, progress.state);
+        saveProgress(conversationId, progress.state, messageId);
+        return response(progress.state, [
+          contentAnswer,
+          `${progress.acknowledgement} ${t(state.language, 'completed')}`.trim(),
+          `${t(state.language, 'commercialCta')}\n\n${handoff.commercial.url}`,
+        ], { qualified: true });
+      }
+
+      saveProgress(conversationId, progress.state, messageId);
+      return response(progress.state, [contentAnswer, humanizedProgress(progress)]);
     }
 
     const assessment = await assessQualificationReply(state.stage, cleanedText, state.language);

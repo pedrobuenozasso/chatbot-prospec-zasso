@@ -80,13 +80,21 @@ function cleanString(value, maximumLength) {
 }
 
 export function validateApiPayload(body) {
+  const eventType = cleanString(body.eventType, 16) || 'message';
   const conversationId = cleanString(body.conversationId, 180);
   const messageId = cleanString(body.messageId, 220);
-  const text = cleanString(body.text, config.maxQuestionChars + 1);
+  const text = eventType === 'call'
+    ? '[incoming_call]'
+    : cleanString(body.text, config.maxQuestionChars + 1);
   const firstName = cleanString(body.firstName, 80);
   const language = cleanString(body.language, 16) || 'pt-BR';
   const channel = cleanString(body.channel, 24) || 'whatsapp';
 
+  if (!['message', 'call'].includes(eventType)) {
+    const error = new Error('unsupported_event_type');
+    error.statusCode = 400;
+    throw error;
+  }
   if (!conversationId || !messageId || !text) {
     const error = new Error('missing_required_fields');
     error.statusCode = 400;
@@ -102,7 +110,7 @@ export function validateApiPayload(body) {
     error.statusCode = 400;
     throw error;
   }
-  return { conversationId, messageId, text, firstName, language, channel };
+  return { conversationId, messageId, text, firstName, language, channel, eventType };
 }
 
 async function serialized(conversationId, task) {

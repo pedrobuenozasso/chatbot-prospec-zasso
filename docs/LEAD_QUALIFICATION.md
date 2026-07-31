@@ -34,6 +34,15 @@ e espanhol. O idioma detectado fica no estado da conversa, por isso respostas
 curtas como “agro”, “Weizen” ou “80 hectares” não fazem o bot voltar ao idioma
 padrão.
 
+Na etapa de área, o lead também pode responder somente `80`, `100,5` ou outro
+número positivo. Como a pergunta já estabelece hectares, o bot acrescenta a
+unidade no resumo comercial sem obrigar a pessoa a digitá-la.
+
+Ligações recebidas não alteram o estágio da conversa. Quando o evento `CALL`
+chega pela Evolution, o bot responde por texto que não atende chamadas e pede
+que o lead escreva a dúvida no chat. Eventos repetidos da mesma chamada são
+deduplicados.
+
 ## Persistência e passagem ao comercial
 
 Durante a transição, o MVP mantém a fila `.outbox/` como contingência e

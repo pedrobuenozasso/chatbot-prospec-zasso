@@ -33,6 +33,29 @@ test('qualifica um lead agro até área em hectares', () => {
   assert.equal(summary.areaHectares, 150);
 });
 
+test('aceita somente o número quando a etapa atual já pergunta hectares', () => {
+  const examples = [
+    ['pt-BR', '100', 100, '100 hectares'],
+    ['pt-BR', '100,5', 100.5, '100,5 hectares'],
+    ['pt-BR', '1.200', 1200, '1.200 hectares'],
+    ['en-US', '1,200.5', 1200.5, '1,200.5 hectares'],
+    ['de-DE', '80', 80, '80 Hektar'],
+    ['fr-FR', '75', 75, '75 hectares'],
+    ['es-ES', '60', 60, '60 hectáreas'],
+  ];
+
+  for (const [language, answer, expectedNumber, expectedText] of examples) {
+    const lead = state();
+    lead.language = language;
+    lead.stage = STAGES.AGRO_AREA;
+    lead.qualification.segment = 'agro';
+    const progress = advanceQualification(lead, answer, language);
+    assert.equal(progress.completed, true, `${language}: ${answer}`);
+    assert.equal(lead.qualification.areaHectares, expectedNumber, `${language}: ${answer}`);
+    assert.equal(lead.qualification.area, expectedText, `${language}: ${answer}`);
+  }
+});
+
 test('qualifica um lead urbano até o perfil de atuação', () => {
   const lead = state();
   let progress = advanceQualification(lead, 'Urbano');

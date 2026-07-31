@@ -29,6 +29,12 @@ for (const [question, expectedFaq] of cases) {
   });
 }
 
+test('recupera orientação segura para rendimento em hectares por hora', async () => {
+  const results = await search('Qual o rendimento da máquina em hectares por hora?', 2);
+  assert.ok(results.some((result) => ['FAQ-127', 'FAQ-128'].includes(result.faqId)));
+  assert.ok(results[0].score >= 0.15);
+});
+
 test('acolhe uma saudação sem chamar o modelo', async () => {
   const result = await answer('Oi');
   assert.equal(result.confident, true);

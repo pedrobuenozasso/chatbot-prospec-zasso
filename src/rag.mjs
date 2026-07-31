@@ -324,6 +324,47 @@ function questionLike(text) {
   return text.includes('?') || /^(o que|qual|quais|como|onde|quando|por que|porque|quanto|voces|what|which|how|where|when|why|can|do|does|is|are|que|cual|como|donde|cuando|por que|cuanto|qu est|quel|quelle|comment|ou|quand|pourquoi|combien|was|welch|wie|wo|wann|warum|wieviel|kann|ist|sind)\b/i.test(normalizedSecurityText(text));
 }
 
+const QUESTION_START = String.raw`(?:o que|qual|quais|como|onde|quando|por que|porque|quanto|quanta|quantos|quantas|voc[eê]s|what|which|how|where|when|why|can|do|does|is|are|qu[eé]|cu[aá]l|c[oó]mo|d[oó]nde|cu[aá]ndo|por qu[eé]|cu[aá]nto|cu[aá]nta|cu[aá]ntos|cu[aá]ntas|qu['’ ]?est|quel|quelle|comment|o[uù]|quand|pourquoi|combien|was|welch|wie|wo|wann|warum|wieviel|kann|ist|sind)`;
+
+function qualificationMessageParts(text) {
+  const questionAhead = `(?=[¿¡]?\\s*${QUESTION_START}\\b[^?\\n]{0,240}\\?)`;
+  return String(text)
+    .trim()
+    .replace(/\r\n?/g, '\n')
+    .replace(/[;:]\s+(?=[^?\n]{1,240}\?)/gu, '\n')
+    .replace(new RegExp(`,\\s+${questionAhead}`, 'giu'), '\n')
+    .replace(new RegExp(`\\s+(?:e|mas|and|but|y|pero|et|mais|und|aber)\\s+${questionAhead}`, 'giu'), '\n')
+    .replace(new RegExp(`(?<=[\\p{L}\\p{N}])\\s+${questionAhead}`, 'giu'), '\n')
+    .split(/\n+|(?<=[.!?])\s+(?=\p{L})/gu)
+    .map((part) => part.trim())
+    .filter(Boolean);
+}
+
+// Uma mensagem pode responder à etapa atual e, ao mesmo tempo, fazer uma nova
+// pergunta (ex.: "Agricultura\nQual o rendimento por hora?"). A separação é
+// determinística para não depender do modelo e para nunca descartar a resposta
+// válida de qualificação só porque existe um ponto de interrogação na mensagem.
+export function partitionQualificationMessage(stage, text) {
+  if (isPromptInjection(text)) return null;
+  const parts = qualificationMessageParts(text);
+  if (parts.length < 2) return null;
+
+  const answerParts = [];
+  const questionParts = [];
+  for (const part of parts) {
+    const assessment = localQualificationAssessment(stage, part);
+    if (assessment.kind === 'answer') answerParts.push(part);
+    if (assessment.kind === 'question') questionParts.push(part);
+  }
+
+  if (!answerParts.length || !questionParts.length) return null;
+  return {
+    kind: 'compound',
+    answer: answerParts.join(' '),
+    question: questionParts.join(' '),
+  };
+}
+
 export function localQualificationAssessment(stage, text) {
   const normalized = normalizedSecurityText(text);
   if (questionLike(text)) return { kind: 'question' };
@@ -337,7 +378,7 @@ export function localQualificationAssessment(stage, text) {
       : { kind: 'invalid' };
   }
   if (stage === 'agro_area') {
-    return /\d+(?:[.,]\d+)?\s*(ha|hectare|hectares|hectarea|hectareas|hektar)\b/.test(normalized)
+    return /^(?:\d[\d.,\s]*|\d[\d.,\s]*\s*(?:ha|hectare|hectares|hectarea|hectareas|hektar))$/.test(normalized)
       ? { kind: 'answer' }
       : { kind: 'invalid' };
   }

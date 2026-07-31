@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { advanceQualification, STAGES } from '../src/conversation.mjs';
-import { assessQualificationReply, localQualificationAssessment } from '../src/rag.mjs';
+import { assessQualificationReply, localQualificationAssessment, partitionQualificationMessage } from '../src/rag.mjs';
 
 function lead() {
   return {
@@ -71,6 +71,12 @@ test('não avança quando a resposta é inválida para o campo atual', () => {
   assert.equal(localQualificationAssessment('urban_profile', 'talvez').kind, 'invalid');
 });
 
+test('reconhece número isolado como área quando a etapa solicita hectares', () => {
+  for (const answer of ['100', '100,5', '1.200', '1,200.5']) {
+    assert.equal(localQualificationAssessment('agro_area', answer).kind, 'answer', answer);
+  }
+});
+
 test('aceita cidades curtas capitalizadas sem aceitar termos bloqueados', () => {
   for (const city of ['Lyon', 'Bonn', 'Paris', 'Itu', 'Jaú']) {
     assert.equal(localQualificationAssessment('region', city).kind, 'answer');
@@ -89,6 +95,41 @@ test('identifica perguntas no meio de qualquer etapa e preserva o estágio', () 
   ];
   for (const [stage, message] of questions) {
     assert.equal(localQualificationAssessment(stage, message).kind, 'question');
+  }
+});
+
+test('separa resposta de qualificação e pergunta na mesma mensagem', () => {
+  const examples = [
+    ['segment', 'Agricultura\nQual o rendimento da máquina em hectares por hora?', 'Agricultura'],
+    ['segment', 'Sou do agro, qual o valor?', 'Sou do agro'],
+    ['region', 'Campinas/SP. Onde encontro uma demonstração?', 'Campinas/SP.'],
+    ['agro_crop', 'Soja; funciona em plantas resistentes?', 'Soja'],
+    ['agro_area', '120 hectares e qual é a velocidade ideal?', '120 hectares'],
+    ['urban_profile', 'Prefeitura, qual é o investimento?', 'Prefeitura'],
+  ];
+
+  for (const [stage, message, expectedAnswer] of examples) {
+    const result = partitionQualificationMessage(stage, message);
+    assert.equal(result?.kind, 'compound');
+    assert.equal(result?.answer, expectedAnswer);
+    assert.match(result?.question || '', /\?|onde|funciona/i);
+  }
+});
+
+test('separa resposta e pergunta de segmento nos cinco idiomas', () => {
+  const examples = [
+    ['Agricultura, quantos hectares por hora a máquina atende?', 'Agricultura'],
+    ['Agriculture, what is the field capacity per hour?', 'Agriculture'],
+    ['Landwirtschaft, wie hoch ist die Flächenleistung pro Stunde?', 'Landwirtschaft'],
+    ['Agriculture, quelle est la capacité par heure ?', 'Agriculture'],
+    ['Agricultura, ¿cuántas hectáreas por hora puede tratar?', 'Agricultura'],
+  ];
+
+  for (const [message, expectedAnswer] of examples) {
+    const result = partitionQualificationMessage('segment', message);
+    assert.equal(result?.kind, 'compound', message);
+    assert.equal(result?.answer, expectedAnswer, message);
+    assert.match(result?.question || '', /\?/u, message);
   }
 });
 

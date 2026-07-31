@@ -60,6 +60,28 @@ test('ignora mensagens próprias, grupos e eventos que não são mensagem', () =
   assert.deepEqual(runNormalizer(payload({ event: 'CONNECTION_UPDATE' })), []);
 });
 
+test('normaliza uma ligação recebida sem tratá-la como mensagem do lead', () => {
+  const [result] = runNormalizer(payload({
+    event: 'CALL',
+    data: {
+      id: 'call-123',
+      from: '5511977777777@s.whatsapp.net',
+      status: 'offer',
+    },
+  }));
+
+  assert.equal(result.json.eventType, 'call');
+  assert.equal(result.json.number, '5511977777777');
+  assert.equal(result.json.messageId, 'call:call-123');
+  assert.equal(result.json.text, '');
+  assert.match(result.json.conversationId, /5511977777777@s\.whatsapp\.net$/);
+
+  assert.deepEqual(runNormalizer(payload({
+    event: 'CALL',
+    data: { id: 'call-123', from: '5511977777777@s.whatsapp.net', status: 'terminate' },
+  })), []);
+});
+
 test('usa remoteJidAlt para entrega quando a Evolution recebe um LID', () => {
   const lid = payload();
   lid.body.data.key.remoteJid = '123456789012345@lid';

@@ -122,8 +122,40 @@ test('API interna exige autenticação e valida o contrato do n8n', () => {
     isValidBearerAuthorization(`Bearer ${process.env.CHATBOT_API_TOKEN}`, process.env.CHATBOT_API_TOKEN),
     true,
   );
-  assert.deepEqual(validateApiPayload(payload), payload);
+  assert.deepEqual(validateApiPayload(payload), { ...payload, eventType: 'message' });
   assert.throws(() => validateApiPayload({ ...payload, messageId: '' }), /missing_required_fields/);
+  assert.deepEqual(
+    validateApiPayload({ ...payload, eventType: 'call', text: '' }),
+    { ...payload, eventType: 'call', text: '[incoming_call]' },
+  );
+  assert.throws(() => validateApiPayload({ ...payload, eventType: 'video' }), /unsupported_event_type/);
+});
+
+test('responde ligação por texto sem iniciar ou avançar a qualificação', async () => {
+  const conversationId = 'whatsapp:test:incoming-call@s.whatsapp.net';
+  let result = await processInboundMessage({
+    conversationId,
+    messageId: 'call:abc-123',
+    text: '[incoming_call]',
+    firstName: 'Lead',
+    language: 'pt-BR',
+    eventType: 'call',
+  });
+
+  assert.equal(result.callRedirected, true);
+  assert.equal(result.stage, 'new');
+  assert.match(result.messages[0], /n[aã]o consigo atender liga[cç][oõ]es/i);
+  assert.match(result.messages[0], /por mensagem/i);
+
+  result = await processInboundMessage({
+    conversationId,
+    messageId: 'call:abc-123',
+    text: '[incoming_call]',
+    language: 'pt-BR',
+    eventType: 'call',
+  });
+  assert.equal(result.duplicate, true);
+  assert.deepEqual(result.messages, []);
 });
 
 test('leva a dúvida inicial de preço no resumo comercial sem levar uma saudação isolada', async () => {
@@ -144,6 +176,33 @@ test('leva a dúvida inicial de preço no resumo comercial sem levar uma saudaç
   assert.equal(result.qualified, true);
   const prefilled = new URL(result.messages[1].match(/https:\/\/wa\.me\/\S+/)[0]).searchParams.get('text');
   assert.match(prefilled, /• Interesse: Olá, qual o valor\?/);
+});
+
+test('registra agricultura como agro e responde uma pergunta composta sem repetir o segmento', async () => {
+  const conversationId = 'whatsapp:test:compound-agriculture@s.whatsapp.net';
+  let result = await processInboundMessage({
+    conversationId,
+    messageId: 'compound-1',
+    text: 'Olá',
+    firstName: 'Carlos',
+    language: 'pt-BR',
+  });
+  assert.equal(result.stage, 'segment');
+
+  result = await processInboundMessage({
+    conversationId,
+    messageId: 'compound-2',
+    text: 'Agricultura\nQual o valor?',
+    firstName: 'Carlos',
+    language: 'pt-BR',
+  });
+
+  assert.equal(result.stage, 'region');
+  assert.equal(result.messages.length, 2);
+  assert.match(result.messages[0], /investimento|orientar|opera[cç][aã]o/i);
+  assert.match(result.messages[1], /^Entendi\./);
+  assert.match(result.messages[1], /regi[aã]o ou cidade/i);
+  assert.doesNotMatch(result.messages.join(' '), /agroneg[oó]cio ou com [aá]rea urbana/i);
 });
 
 test('conclui e redireciona o pós-handoff no idioma da conversa', async () => {

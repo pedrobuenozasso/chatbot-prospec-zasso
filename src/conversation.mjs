@@ -164,9 +164,43 @@ function detectUrbanProfile(answer) {
   return null;
 }
 
-function hectares(answer) {
-  const match = normalize(answer).match(/(\d+(?:[.,]\d+)?)\s*(ha|hectare|hectares|hectarea|hectareas|hektar)\b/);
-  return match ? Number(match[1].replace(',', '.')) : null;
+function hectares(answer, language) {
+  const match = normalize(answer).match(/^([\d.,\s]+?)\s*(?:ha|hectare|hectares|hectarea|hectareas|hektar)?$/);
+  if (!match) return null;
+
+  const compact = match[1].replace(/\s+/g, '');
+  if (!/^\d+(?:[.,]\d+)*$/.test(compact)) return null;
+  const locale = normalizeLanguage(language);
+  let canonical = compact;
+
+  if (compact.includes(',') && compact.includes('.')) {
+    const decimalSeparator = compact.lastIndexOf(',') > compact.lastIndexOf('.') ? ',' : '.';
+    const thousandsSeparator = decimalSeparator === ',' ? '.' : ',';
+    canonical = compact.replaceAll(thousandsSeparator, '').replace(decimalSeparator, '.');
+  } else if (compact.includes(',')) {
+    canonical = locale === 'en-US'
+      ? compact.replaceAll(',', '')
+      : compact.replace(',', '.');
+  } else if (compact.includes('.')) {
+    const pieces = compact.split('.');
+    const groupedThousands = locale !== 'en-US' && pieces.length > 1 && pieces.slice(1).every((piece) => piece.length === 3);
+    canonical = groupedThousands ? pieces.join('') : compact;
+  }
+
+  const parsed = Number(canonical);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+}
+
+function areaWithUnit(answer, language) {
+  if (/(?:^|\s)(?:ha|hectare|hectares|hectarea|hectareas|hektar)\b/i.test(normalize(answer))) return answer.trim();
+  const units = {
+    'pt-BR': 'hectares',
+    'en-US': 'hectares',
+    'de-DE': 'Hektar',
+    'fr-FR': 'hectares',
+    'es-ES': 'hectáreas',
+  };
+  return `${answer.trim()} ${units[normalizeLanguage(language)]}`;
 }
 
 function acknowledgement(stage, language) {
@@ -200,11 +234,11 @@ export function advanceQualification(state, answer, language = state.language ||
     state.qualification.crop = value;
     state.stage = STAGES.AGRO_AREA;
   } else if (state.stage === STAGES.AGRO_AREA) {
-    const parsedArea = hectares(value);
+    const parsedArea = hectares(value, locale);
     if (parsedArea === null) {
       return { state, nextQuestion: t(locale, 'areaClarification'), acknowledgement: '', completed: false };
     }
-    state.qualification.area = value;
+    state.qualification.area = areaWithUnit(value, locale);
     state.qualification.areaHectares = parsedArea;
     state.stage = STAGES.COMPLETED;
   } else if (state.stage === STAGES.URBAN_PROFILE) {
