@@ -198,6 +198,26 @@ Na Evolution, a integração oficial usa:
 }
 ```
 
+## Troca de número sem interromper o piloto
+
+Para colocar um novo número no mesmo bot sem mexer no número que já está em
+teste, crie uma segunda instância `WHATSAPP-BAILEYS`, por exemplo
+`zasso-producao`. O n8n recebe a instância no próprio evento e encaminha a
+resposta usando esse mesmo identificador; por isso não é necessário duplicar o
+workflow nem alterar o RAG, o banco ou o número comercial do handoff.
+
+1. Crie a nova instância com `qrcode: true`.
+2. Copie para ela o webhook seguro do piloto, com somente `MESSAGES_UPSERT`.
+3. Aplique `rejectCall: true` e a mensagem curta de orientação de chamadas.
+4. Gere um QR apenas quando o aparelho estiver disponível — ele expira.
+5. Escaneie pelo WhatsApp do novo número e confirme `connectionState: open`.
+6. Faça uma conversa completa de teste. Só depois decida se desativa a
+   instância anterior.
+
+O link final continua apontando para `COMMERCIAL_WHATSAPP_NUMBER`; trocar o
+número que recebe os leads não muda o destino comercial nem o resumo que é
+preenchido para a equipe.
+
 Depois de configurar `API_URL/webhook/meta` no aplicativo Meta, troque a
 instância/credencial Evolution no workflow. A API Zasso, o RAG e a
 qualificação não precisam ser reescritos.
