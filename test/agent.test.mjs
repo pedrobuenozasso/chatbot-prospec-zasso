@@ -11,6 +11,7 @@ process.env.CHATBOT_API_TOKEN = 'test-token-with-at-least-thirty-two-characters'
 
 const { processInboundMessage } = await import('../src/agent.mjs');
 const { isValidBearerAuthorization, validateApiPayload } = await import('../src/server.mjs');
+const { newConversation, restoreConversation } = await import('../src/conversation.mjs');
 
 test.after(() => rmSync(temporaryDirectory, { recursive: true, force: true }));
 
@@ -84,6 +85,28 @@ test('prompt injection não avança a qualificação', async () => {
   assert.equal(result.stage, 'segment');
   assert.equal(result.messages.length, 2);
   assert.match(result.messages[0], /informações públicas/i);
+});
+
+test('reinicia a triagem depois de 15 dias sem contato, mesmo após handoff', async () => {
+  const conversationId = 'whatsapp:test:inactive-lead@s.whatsapp.net';
+  const expired = newConversation({ firstName: 'Ana', language: 'pt-BR' });
+  expired.stage = 'completed';
+  expired.handoffStatus = 'queued';
+  expired.handoffProtocol = 'ZAS-20260701-OLD001';
+  expired.initialInterest = 'Quero saber o valor';
+  expired.updatedAt = new Date(Date.now() - 16 * 24 * 60 * 60 * 1000).toISOString();
+  restoreConversation(conversationId, expired);
+
+  const result = await processInboundMessage({
+    conversationId,
+    messageId: 'inactive-message-1',
+    text: 'Olá, gostaria de saber sobre a tecnologia',
+    firstName: 'Ana',
+  });
+
+  assert.equal(result.stage, 'segment');
+  assert.equal(result.handoffStatus, 'not_ready');
+  assert.doesNotMatch(result.messages.join('\n'), /link que enviei acima/i);
 });
 
 test('prompt injection inicial não entra no resumo enviado ao comercial', async () => {

@@ -127,6 +127,56 @@ export async function closeDatabase() {
   pool = undefined;
 }
 
+export async function enforceRetentionPolicy() {
+  if (!ready) return { enabled: false, deletedMessages: 0, expiredConversations: 0 };
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const deletedMessages = await client.query(
+      `DELETE FROM chatbot_messages
+       WHERE created_at < now() - ($1 * interval '1 day')`,
+      [config.messageRetentionDays],
+    );
+    // O resumo comercial já foi gravado em chatbot_handoffs. Apagamos do
+    // estado conversacional o nome, interesse e qualificação antigos, sem
+    // remover o registro operacional que a equipe comercial possa precisar.
+    const expiredConversations = await client.query(
+      `UPDATE chatbot_conversations
+       SET stage = 'new',
+           status = 'expired',
+           state = jsonb_build_object(
+             'stage', 'new',
+             'greeted', false,
+             'language', language,
+             'handoffStatus', 'not_ready',
+             'initialInterest', '',
+             'contact', jsonb_build_object('firstName', ''),
+             'qualification', jsonb_build_object(
+               'segment', null, 'region', null, 'crop', null,
+               'area', null, 'areaHectares', null, 'urbanProfile', null
+             ),
+             'createdAt', now()::text,
+             'updatedAt', now()::text
+           ),
+           updated_at = now()
+       WHERE updated_at < now() - ($1 * interval '1 day')
+         AND status <> 'expired'`,
+      [config.conversationInactivityDays],
+    );
+    await client.query('COMMIT');
+    return {
+      enabled: true,
+      deletedMessages: deletedMessages.rowCount || 0,
+      expiredConversations: expiredConversations.rowCount || 0,
+    };
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
 export async function loadConversationState(conversationId) {
   if (!ready) return null;
   const result = await pool.query(

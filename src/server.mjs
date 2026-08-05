@@ -6,6 +6,7 @@ import { migrateConversationState } from './conversation.mjs';
 import {
   closeDatabase,
   databaseStatus,
+  enforceRetentionPolicy,
   initializeDatabase,
 } from './database.mjs';
 import { secureHandoffStorage } from './handoff.mjs';
@@ -183,6 +184,21 @@ export async function startChatbotServer() {
   migrateConversationState();
   secureHandoffStorage();
   await initializeDatabase();
+  const applyRetention = () => {
+    enforceRetentionPolicy()
+      .then(({ enabled, deletedMessages, expiredConversations }) => {
+        if (enabled && (deletedMessages || expiredConversations)) {
+          console.log(`Retenção aplicada: ${deletedMessages} mensagens removidas, ${expiredConversations} conversas expiradas.`);
+        }
+      })
+      .catch((error) => {
+        console.error(`Falha na retenção (${error?.name || 'Error'}).`);
+        recordEvent('retention_policy_error', { errorType: error?.name || 'Error' });
+      });
+  };
+  applyRetention();
+  const retentionTimer = setInterval(applyRetention, config.retentionSweepIntervalHours * 60 * 60 * 1000);
+  retentionTimer.unref();
   const server = createChatbotServer();
   server.requestTimeout = config.chatbotApiRequestTimeoutMs;
   server.headersTimeout = 15_000;
@@ -190,6 +206,7 @@ export async function startChatbotServer() {
     console.log(`API do chatbot disponível em http://${config.chatbotApiHost}:${config.chatbotApiPort}`);
   });
   server.on('close', () => {
+    clearInterval(retentionTimer);
     closeDatabase().catch(() => undefined);
   });
   return server;

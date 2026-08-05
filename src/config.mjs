@@ -33,6 +33,14 @@ function databaseSchema(value) {
   return schema;
 }
 
+function positiveIntegerEnvironment(name, fallback, minimum = 1, maximum = 3650) {
+  const value = Number(process.env[name] || fallback);
+  if (!Number.isInteger(value) || value < minimum || value > maximum) {
+    throw new Error(`${name} deve ser um inteiro entre ${minimum} e ${maximum}.`);
+  }
+  return value;
+}
+
 export const config = {
   faqDirectory: resolve(projectRoot, 'knowledge/public-faq'),
   indexPath: resolve(projectRoot, '.index/faq-index.json'),
@@ -64,6 +72,11 @@ export const config = {
   telegramRateLimitWindowMs: Number(process.env.TELEGRAM_RATE_LIMIT_WINDOW_MS || '60000'),
   replyTypingMinMs: Number(process.env.REPLY_TYPING_MIN_MS || '900'),
   replyTypingMaxMs: Number(process.env.REPLY_TYPING_MAX_MS || '2200'),
+  // A conversa volta a ser uma nova triagem depois deste período sem contato.
+  conversationInactivityDays: positiveIntegerEnvironment('CONVERSATION_INACTIVITY_DAYS', 15),
+  // O texto integral é removido no mesmo prazo; resumos comerciais seguem sua política própria.
+  messageRetentionDays: positiveIntegerEnvironment('MESSAGE_RETENTION_DAYS', 15),
+  retentionSweepIntervalHours: positiveIntegerEnvironment('RETENTION_SWEEP_INTERVAL_HOURS', 24, 1, 168),
   showSources: (process.env.SHOW_SOURCES || 'false').toLocaleLowerCase() === 'true',
   databaseEnabled: booleanEnvironment('DATABASE_ENABLED'),
   databaseRequired: booleanEnvironment('DATABASE_REQUIRED'),

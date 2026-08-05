@@ -1,8 +1,10 @@
 import { processInboundMessage } from './agent.mjs';
 import { config } from './config.mjs';
 import {
+  conversationExpired,
   findConversation,
   getConversation,
+  resetConversation,
   restoreConversation,
 } from './conversation.mjs';
 import {
@@ -39,6 +41,14 @@ async function reconcileConversation(payload) {
     firstName: payload.firstName,
     language: payload.language,
   });
+
+  if (remote && conversationExpired(remote)) {
+    // Não restaura um handoff ou uma qualificação antiga: a próxima mensagem
+    // inicia uma nova triagem e sobrescreve o estado remoto já expirado.
+    resetConversation(payload.conversationId);
+    recordEvent('conversation_session_expired', { reason: 'inactivity' });
+    return;
+  }
 
   if (remote && (!local || stateTimestamp(remote) > stateTimestamp(local))) {
     restoreConversation(payload.conversationId, remote);

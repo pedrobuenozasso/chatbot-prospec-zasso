@@ -40,6 +40,12 @@ export function conversationStorageKey(chatId) {
   return createHash('sha256').update(`telegram:${chatId}`).digest('hex');
 }
 
+export function conversationExpired(state, now = Date.now()) {
+  const updatedAt = Date.parse(state?.updatedAt || '');
+  if (!Number.isFinite(updatedAt)) return false;
+  return now - updatedAt >= config.conversationInactivityDays * 24 * 60 * 60 * 1000;
+}
+
 function sanitizedState(state) {
   state.language = normalizeLanguage(state.language);
   state.contact = { firstName: state.contact?.firstName || '' };
@@ -74,6 +80,12 @@ export function findConversation(chatId, contact) {
   const legacyKey = String(chatId);
   const state = conversations[key] || conversations[legacyKey];
   if (!state) return null;
+  if (conversationExpired(state)) {
+    delete conversations[legacyKey];
+    delete conversations[key];
+    writeAll(conversations);
+    return null;
+  }
   state.language = normalizeLanguage(state.language || contact?.language);
   state.contact = { firstName: contact?.firstName || state.contact?.firstName || '' };
   // Migra silenciosamente estados antigos que ainda usavam o ID bruto do chat.
