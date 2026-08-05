@@ -44,6 +44,19 @@ escreva no chat. Isso é feito nativamente porque chamadas podem chegar com
 identificador privado `@lid`; o workflow mantém suporte a `CALL` apenas como
 contingência.
 
+## Retenção e novo contato
+
+O estado de qualificação vale por **15 dias de inatividade**. Depois disso, se
+o mesmo número voltar a escrever — mesmo que tenha concluído um handoff antes —
+o bot inicia uma nova triagem e gera um novo protocolo quando necessário.
+
+O conteúdo integral de `chatbot_messages` é removido após 15 dias. Métricas
+agregadas e o resumo já entregue ao comercial seguem a política comercial
+própria; a limpeza não apaga o registro operacional do handoff.
+
+Os valores podem ser ajustados na VPS por `CONVERSATION_INACTIVITY_DAYS`,
+`MESSAGE_RETENTION_DAYS` e `RETENTION_SWEEP_INTERVAL_HOURS`.
+
 ## Persistência e passagem ao comercial
 
 Durante a transição, o MVP mantém a fila `.outbox/` como contingência e
