@@ -106,7 +106,7 @@ export function validateApiPayload(body) {
     error.statusCode = 400;
     throw error;
   }
-  if (channel !== 'whatsapp' && channel !== 'n8n-test') {
+  if (!['whatsapp', 'web', 'n8n-test'].includes(channel)) {
     const error = new Error('unsupported_channel');
     error.statusCode = 400;
     throw error;

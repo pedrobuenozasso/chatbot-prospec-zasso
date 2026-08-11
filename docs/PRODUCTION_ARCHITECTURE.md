@@ -18,7 +18,7 @@ flowchart LR
   faq --> ingest["production/ingestion-worker\nembeddings multilíngues"]
   ingest --> vector["PostgreSQL + pgvector"]
   vector --> backend["production/chatbot-backend\nmemória, roteamento, RAG"]
-  backend --> channel["Telegram, Evolution piloto\nWhatsApp Business oficial"]
+  backend --> channel["Web Chat, Telegram, Evolution piloto\nWhatsApp Business oficial"]
   backend --> worker["SACF AI Worker\n/v1/jobs"]
 ```
 
@@ -39,3 +39,10 @@ flowchart LR
 4. Validar o adaptador Evolution/n8n e trocar a instância piloto pela
    `WHATSAPP-BUSINESS` oficial.
 5. Entregar handoff real e fila operacional no painel próprio.
+
+## Canal web
+
+O repositório `web-chatbot` fornece a interface pública e usa o endpoint
+`/v1/messages` com `channel=web`. O token permanece na camada de servidor da
+aplicação web; o navegador nunca acessa diretamente o chatbot, o banco ou o
+worker de IA.
