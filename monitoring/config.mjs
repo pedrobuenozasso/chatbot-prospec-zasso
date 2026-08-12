@@ -29,7 +29,7 @@ export const monitoringConfig = Object.freeze({
   encryptionKey: process.env.MONITORING_ENCRYPTION_KEY || '',
   proxyToken: process.env.MONITORING_PROXY_TOKEN || '',
   requireProxy: boolean('MONITORING_REQUIRE_PROXY', false),
-  allowedEmailDomain: (process.env.MONITORING_ALLOWED_EMAIL_DOMAIN || 'zasso.com').toLowerCase(),
+  allowedEmailDomain: (process.env.MONITORING_ALLOWED_EMAIL_DOMAIN || 'zasso.com.br').toLowerCase(),
   allowedEmails: Object.freeze(String(process.env.MONITORING_ALLOWED_EMAILS || '')
     .split(',').map((email) => email.trim().toLowerCase()).filter(Boolean)),
   emailLoginEnabled: boolean('MONITORING_EMAIL_LOGIN_ENABLED', true),

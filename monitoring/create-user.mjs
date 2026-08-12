@@ -11,7 +11,7 @@ const role = ['viewer', 'reviewer', 'admin'].includes(roleInput) ? roleInput : '
 const password = String(passwordInput || '');
 
 if (!isAllowedAdminEmail(email) || !displayName || password.length < 14) {
-  console.error('Uso: node monitoring/create-user.mjs email@zasso.com "Nome" admin "senha-com-14-ou-mais"');
+  console.error('Uso: node monitoring/create-user.mjs email@zasso.com.br "Nome" admin "senha-com-14-ou-mais"');
   process.exitCode = 2;
 } else {
   const secret = randomTotpSecret();

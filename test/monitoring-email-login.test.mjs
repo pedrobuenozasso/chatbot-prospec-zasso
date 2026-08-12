@@ -13,7 +13,7 @@ test('código de acesso tem seis dígitos e usa aleatoriedade criptográfica', (
 test('mail service recebe somente destinatário autorizado e conteúdo do OTP', async () => {
   let captured;
   const result = await sendLoginCodeEmail({
-    email: 'pedro.bueno@zasso.com', code: '482731', minutes: 10,
+    email: 'pedro.bueno@zasso.com.br', code: '482731', minutes: 10,
     serviceUrl: 'http://sacf-mail-service:8015', serviceToken: 'a'.repeat(32),
     fetchImpl: async (url, options) => {
       captured = { url: String(url), options };
@@ -24,7 +24,7 @@ test('mail service recebe somente destinatário autorizado e conteúdo do OTP', 
   assert.equal(captured.url, 'http://sacf-mail-service:8015/v1/send');
   assert.equal(captured.options.headers['x-service-token'], 'a'.repeat(32));
   const body = JSON.parse(captured.options.body);
-  assert.deepEqual(body.to, ['pedro.bueno@zasso.com']);
+  assert.deepEqual(body.to, ['pedro.bueno@zasso.com.br']);
   assert.match(body.text, /482731/);
   assert.doesNotMatch(body.text, /senha|password/i);
 });
@@ -32,7 +32,7 @@ test('mail service recebe somente destinatário autorizado e conteúdo do OTP', 
 test('cliente de e-mail bloqueia endpoint externo', async () => {
   await assert.rejects(
     sendLoginCodeEmail({
-      email: 'pedro.bueno@zasso.com', code: '482731',
+      email: 'pedro.bueno@zasso.com.br', code: '482731',
       serviceUrl: 'https://evil.example', serviceToken: 'a'.repeat(32), fetchImpl: async () => new Response(),
     }),
     /MAIL_SERVICE_ENDPOINT_NOT_ALLOWED/,
