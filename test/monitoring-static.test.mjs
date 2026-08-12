@@ -12,12 +12,15 @@ test('painel não depende de scripts externos e declara noindex', async () => {
   assert.match(html, /brand\.css/);
   assert.match(html, /zasso-logo-black\.png/);
   assert.match(html, /zasso-logo-round-black\.png/);
+  assert.match(html, /rel="icon"[^>]+zasso-favicon\.png/);
+  assert.match(html, /rel="apple-touch-icon"[^>]+zasso-apple-touch-icon\.png/);
   assert.doesNotMatch(html, /Sem senha\. Código temporário/);
 });
 
 test('identidade visual utiliza somente imagens locais da Zasso', async () => {
   const assets = await Promise.all([
-    'zasso-logo-black.png', 'zasso-logo-white.png', 'zasso-logo-round-black.png', 'zasso-e-coffee.png', 'zasso-raiden.png',
+    'zasso-logo-black.png', 'zasso-logo-white.png', 'zasso-logo-round-black.png', 'zasso-favicon.png',
+    'zasso-apple-touch-icon.png', 'zasso-e-coffee.png', 'zasso-raiden.png',
   ].map((name) => readFile(new URL(`../monitoring/public/assets/${name}`, import.meta.url))));
   assert.ok(assets.every((asset) => asset.length > 1000));
 });
