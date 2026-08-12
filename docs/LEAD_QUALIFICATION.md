@@ -71,8 +71,10 @@ O número de destino é definido por `COMMERCIAL_WHATSAPP_NUMBER`, no formato
 internacional e somente com dígitos. Para o número brasileiro `(11)
 96770-2212`, por exemplo, o valor é `5511967702212`.
 
-O próprio lead abre o link `wa.me` e encontra uma mensagem curta já preenchida
-em seu idioma. Por segurança do WhatsApp, ele ainda precisa tocar em **Enviar**.
+No WhatsApp oficial, o lead vê um botão curto e localizado para continuar com a
+equipe comercial. O botão abre o destino `wa.me` com a mensagem curta já
+preenchida em seu idioma, sem exibir a URL longa na conversa. Por segurança do
+WhatsApp, ele ainda precisa tocar em **Enviar**.
 O resumo inclui somente os campos confirmados:
 
 - segmento e região;

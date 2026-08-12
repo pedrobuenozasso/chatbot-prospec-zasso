@@ -90,8 +90,9 @@ envia as respostas pela Evolution. Nenhuma chave é armazenada no workflow.
 
 Após o primeiro atendimento, o MVP coleta o perfil do lead de forma
 conversacional e prepara sua entrada na fila interna de atendimento. Ao
-concluir, envia ao lead um link para o WhatsApp comercial com protocolo e
-resumo já preenchidos. O destino é configurado por
+concluir, envia ao lead um botão oficial do WhatsApp para falar com a equipe
+comercial, mantendo protocolo e resumo já preenchidos sem exibir a URL longa.
+O destino é configurado por
 `COMMERCIAL_WHATSAPP_NUMBER`, sempre no formato internacional e somente com
 dígitos. Veja o fluxo e a configuração em
 [LEAD_QUALIFICATION.md](docs/LEAD_QUALIFICATION.md).

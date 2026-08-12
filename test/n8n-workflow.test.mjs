@@ -8,6 +8,21 @@ const workflow = JSON.parse(
 );
 const normalizer = workflow.nodes.find((node) => node.name === 'Normalizar e Filtrar Evento');
 const runNormalizer = new Function('$json', normalizer.parameters.jsCode);
+const preparer = workflow.nodes.find((node) => node.name === 'Preparar Respostas');
+const runPreparer = new Function('$', '$json', preparer.parameters.jsCode);
+
+function prepareMessages(messages, language = 'pt-BR') {
+  const inbound = {
+    instance: 'zasso-oficial',
+    number: '5519999999999',
+    language: 'pt-BR',
+  };
+  const nodeLookup = (name) => {
+    assert.equal(name, 'Normalizar e Filtrar Evento');
+    return { first: () => ({ json: inbound }) };
+  };
+  return runPreparer(nodeLookup, { messages, language });
+}
 
 function payload(overrides = {}) {
   return {
@@ -35,9 +50,64 @@ test('workflow n8n é JSON válido e contém os nodes essenciais', () => {
     'Normalizar e Filtrar Evento',
     'Consultar Chatbot Zasso',
     'Enviar pela Evolution',
+    'É CTA Comercial?',
+    'Enviar CTA pela Meta',
   ]) {
     assert.ok(workflow.nodes.some((node) => node.name === name), `node ausente: ${name}`);
   }
+});
+
+test('converte somente o link comercial aprovado em botão CTA oficial', () => {
+  const commercialUrl = 'https://wa.me/5511967702212?text=Resumo%20seguro';
+  const [result] = prepareMessages([
+    'Toque no link abaixo para continuar:\n\n' + commercialUrl,
+  ]);
+
+  assert.equal(result.json.messageType, 'commercial_cta');
+  assert.equal(result.json.ctaLabel, 'Falar com a equipe');
+  assert.equal(result.json.ctaUrl, commercialUrl);
+  assert.doesNotMatch(result.json.text, /wa\.me|https?:\/\//i);
+});
+
+test('não transforma link externo ou outro número em CTA comercial', () => {
+  for (const message of [
+    'Veja https://example.com/alguma-coisa',
+    'https://wa.me/5511999999999?text=Outro',
+    'https://wa.me/5511967702212',
+  ]) {
+    const [result] = prepareMessages([message]);
+    assert.equal(result.json.messageType, 'text');
+    assert.equal(result.json.text, message);
+    assert.equal(result.json.ctaUrl, undefined);
+  }
+});
+
+test('localiza texto e rótulo do CTA em todos os idiomas suportados', () => {
+  const link = 'https://wa.me/5511967702212?text=Resumo';
+  const expectations = new Map([
+    ['pt-BR', 'Falar com a equipe'],
+    ['en', 'Talk to our team'],
+    ['de', 'Zum Vertrieb'],
+    ['fr', 'Contacter l’équipe'],
+    ['es', 'Hablar con el equipo'],
+  ]);
+
+  for (const [language, label] of expectations) {
+    const [result] = prepareMessages([link], language);
+    assert.equal(result.json.messageType, 'commercial_cta');
+    assert.equal(result.json.ctaLabel, label);
+    assert.ok(label.length <= 20, 'rótulo excede limite da Meta: ' + label);
+    assert.ok(result.json.text.length > 20);
+  }
+});
+
+test('node da Meta usa credencial referenciada e payload cta_url sem token embutido', () => {
+  const node = workflow.nodes.find((candidate) => candidate.name === 'Enviar CTA pela Meta');
+  assert.equal(node.credentials.httpHeaderAuth.name, 'Zasso Meta Cloud API');
+  assert.match(node.parameters.url, /^https:\/\/graph\.facebook\.com\/v25\.0\/\d+\/messages$/);
+  assert.match(node.parameters.body, /type: 'cta_url'/);
+  assert.match(node.parameters.body, /display_text: \$json\.ctaLabel/);
+  assert.doesNotMatch(JSON.stringify(node.parameters), /EA[A-Za-z0-9]{30,}/);
 });
 
 test('normaliza mensagem privada recebida pela Evolution', () => {
