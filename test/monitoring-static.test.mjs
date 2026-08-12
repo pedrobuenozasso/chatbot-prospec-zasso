@@ -20,6 +20,15 @@ test('painel abre o histórico pela rota compatível com a Vercel e identifica l
   assert.doesNotMatch(script, /api\(`\/api\/conversations\/\$\{encodeURIComponent\(id\)\}`\)/);
 });
 
+test('exemplo de produção restringe o painel aos dois e-mails autorizados', async () => {
+  const environment = await readFile(new URL('../.env.example', import.meta.url), 'utf8');
+  const allowed = environment.match(/^MONITORING_ALLOWED_EMAILS=(.+)$/m)?.[1].split(',').sort();
+  assert.deepEqual(allowed, [
+    'pedro.bueno@zasso.com.br',
+    'rodrigo.conilho@zasso.com.br',
+  ]);
+});
+
 test('compose mantém painel separado e atrás do HTTPS do proxy', async () => {
   const compose = await readFile(new URL('../docker-compose.monitoring.yml', import.meta.url), 'utf8');
   assert.match(compose, /zasso-monitoring:/);
