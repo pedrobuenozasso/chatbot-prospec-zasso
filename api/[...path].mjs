@@ -28,7 +28,7 @@ function splitSetCookie(value) {
 export default async function handler(request, response) {
   const upstreamOrigin = String(process.env.MONITORING_UPSTREAM_ORIGIN || '').replace(/\/$/, '');
   const proxyToken = String(process.env.MONITORING_PROXY_TOKEN || '');
-  if (!/^https:\/\//.test(upstreamOrigin) || proxyToken.length < 32) {
+  if (!/^https:\/\//.test(upstreamOrigin)) {
     return response.status(503).json({ error: 'Monitoramento temporariamente indisponível.' });
   }
 
@@ -41,9 +41,9 @@ export default async function handler(request, response) {
     accept: 'application/json',
     'content-type': request.headers['content-type'] || 'application/json',
     'user-agent': request.headers['user-agent'] || 'zasso-monitoring-vercel-proxy',
-    'x-monitoring-proxy-token': proxyToken,
     'x-forwarded-for': String(request.headers['x-forwarded-for'] || request.socket?.remoteAddress || ''),
   };
+  if (proxyToken.length >= 32) headers['x-monitoring-proxy-token'] = proxyToken;
   if (request.headers.cookie) headers.cookie = request.headers.cookie;
   if (request.headers.origin) headers.origin = request.headers.origin;
   if (request.headers['x-csrf-token']) headers['x-csrf-token'] = request.headers['x-csrf-token'];

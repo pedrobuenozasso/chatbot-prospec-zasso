@@ -68,8 +68,7 @@ No `.env` privado da VPS:
 ```dotenv
 MONITORING_PASSWORD_PEPPER=<openssl rand -hex 32>
 MONITORING_ENCRYPTION_KEY=<openssl rand -hex 32>
-MONITORING_PROXY_TOKEN=<openssl rand -hex 32>
-MONITORING_REQUIRE_PROXY=true
+MONITORING_REQUIRE_PROXY=false
 MONITORING_ALLOWED_EMAILS=pedro.bueno@zasso.com
 MONITORING_ALLOWED_EMAIL_DOMAIN=zasso.com
 MONITORING_SESSION_HOURS=8
@@ -78,7 +77,7 @@ MONITORING_HEALTH_RETENTION_DAYS=90
 MONITORING_AI_ANALYSIS_ENABLED=false
 ```
 
-Na implantação atual, a interface fica na Vercel e chama um proxy serverless de origem fixa. Somente esse proxy conhece `MONITORING_PROXY_TOKEN`; a API da VPS não aceita chamadas administrativas diretas. A Vercel não recebe credenciais do PostgreSQL.
+Na implantação atual, a interface fica na Vercel e chama um proxy serverless de origem fixa. Toda autorização continua na VPS com e-mail exato, senha forte e TOTP. A Vercel não recebe credenciais do PostgreSQL. Opcionalmente, `MONITORING_PROXY_TOKEN` e `MONITORING_REQUIRE_PROXY=true` podem ser adotados depois como uma segunda autenticação entre serviços.
 
 Os dados do PostgreSQL são os mesmos já usados pelo chatbot. O painel nunca deve receber uma chave do navegador; todos os segredos ficam somente no servidor.
 
