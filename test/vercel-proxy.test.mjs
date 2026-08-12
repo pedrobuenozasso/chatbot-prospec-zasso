@@ -33,3 +33,27 @@ test('proxy da Vercel preserva rota, query e método da API', async () => {
     else process.env.MONITORING_UPSTREAM_ORIGIN = originalOrigin;
   }
 });
+
+test('proxy encaminha as rotas planas do login por e-mail', async () => {
+  const originalFetch = global.fetch;
+  const originalOrigin = process.env.MONITORING_UPSTREAM_ORIGIN;
+  let captured;
+  process.env.MONITORING_UPSTREAM_ORIGIN = 'https://monitoring.example.test';
+  global.fetch = async (target) => {
+    captured = String(target);
+    return new Response('{"ok":true}', { status: 202, headers: { 'content-type': 'application/json' } });
+  };
+  const response = {
+    setHeader() {}, status(code) { this.statusCode = code; return this; },
+    send() { return this; }, json() { return this; }, end() { return this; },
+  };
+  try {
+    await handler({ method: 'POST', url: '/api/login-request', headers: {}, body: {}, query: {}, socket: {} }, response);
+    assert.equal(captured, 'https://monitoring.example.test/api/login-request');
+    assert.equal(response.statusCode, 202);
+  } finally {
+    global.fetch = originalFetch;
+    if (originalOrigin == null) delete process.env.MONITORING_UPSTREAM_ORIGIN;
+    else process.env.MONITORING_UPSTREAM_ORIGIN = originalOrigin;
+  }
+});

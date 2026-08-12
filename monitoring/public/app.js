@@ -61,7 +61,7 @@ async function api(path, options = {}) {
   if (options.method && options.method !== 'GET' && csrf) headers['x-csrf-token'] = csrf;
   const response = await fetch(path, { credentials: 'same-origin', ...options, headers });
   const payload = await response.json().catch(() => ({}));
-  if (response.status === 401 && !path.startsWith('/api/login/')) showLogin();
+  if (response.status === 401 && !path.startsWith('/api/login-')) showLogin();
   if (!response.ok) throw new Error(payload.error || 'Não foi possível concluir a operação.');
   return payload;
 }
@@ -286,12 +286,12 @@ byId('login-form').addEventListener('submit', async (event) => {
   try {
     if (formElement.dataset.step === 'request') {
       const email = String(form.get('email') || '').trim().toLowerCase();
-      const result = await api('/api/login/request', { method: 'POST', body: JSON.stringify({ email }) });
+      const result = await api('/api/login-request', { method: 'POST', body: JSON.stringify({ email }) });
       showCodeStep(email);
       toast(result.message || 'Código enviado. Confira seu e-mail.');
       return;
     }
-    const result = await api('/api/login/verify', {
+    const result = await api('/api/login-verify', {
       method: 'POST', body: JSON.stringify({ email: state.loginEmail, code: String(form.get('code') || '').trim() }),
     });
     state.user = result.user;
@@ -309,7 +309,7 @@ byId('change-email').addEventListener('click', () => resetLoginForm());
 byId('resend-code').addEventListener('click', async () => {
   byId('login-error').textContent = '';
   try {
-    const result = await api('/api/login/request', { method: 'POST', body: JSON.stringify({ email: state.loginEmail }) });
+    const result = await api('/api/login-request', { method: 'POST', body: JSON.stringify({ email: state.loginEmail }) });
     byId('login-form').elements.code.value = '';
     byId('login-form').elements.code.focus();
     toast(result.message || 'Novo código solicitado.');

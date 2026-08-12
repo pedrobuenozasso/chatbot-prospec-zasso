@@ -219,8 +219,8 @@ async function handleLoginCodeVerify(request, response) {
 
 async function api(request, response, url) {
   if (!validProxy(request)) return json(response, 404, { error: 'Rota não encontrada.' });
-  if (request.method === 'POST' && url.pathname === '/api/login/request') return handleLoginCodeRequest(request, response);
-  if (request.method === 'POST' && url.pathname === '/api/login/verify') return handleLoginCodeVerify(request, response);
+  if (request.method === 'POST' && url.pathname === '/api/login-request') return handleLoginCodeRequest(request, response);
+  if (request.method === 'POST' && url.pathname === '/api/login-verify') return handleLoginCodeVerify(request, response);
   const user = await authenticate(request);
   if (!user) return json(response, 401, { error: 'Sessão expirada.' });
   const context = { actorId: user.id, ip: clientIp(request) };
