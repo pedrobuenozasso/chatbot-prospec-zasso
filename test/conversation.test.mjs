@@ -56,6 +56,36 @@ test('aceita somente o número quando a etapa atual já pergunta hectares', () =
   }
 });
 
+test('entende área informada naturalmente e converte unidades para hectares', () => {
+  const examples = [
+    ['Temos uma associação, trabalhamos no compartilhamento de máquinas. Posso estimar em uma área aproximada de 20 ha.', 20, '20 hectares'],
+    ['Em média 500 hectares.', 500, '500 hectares'],
+    ['200.000 metros quadrados.', 20, '20 hectares'],
+    ['A propriedade tem aproximadamente 1,5 km².', 150, '150 hectares'],
+    ['We operate an area of about 100 acres.', 40.468564224, '40,4686 hectares'],
+  ];
+
+  for (const [answer, expectedNumber, expectedText] of examples) {
+    const lead = state();
+    lead.stage = STAGES.AGRO_AREA;
+    lead.qualification.segment = 'agro';
+    const progress = advanceQualification(lead, answer, 'pt-BR');
+    assert.equal(progress.completed, true, answer);
+    assert.equal(lead.qualification.areaHectares, expectedNumber, answer);
+    assert.equal(lead.qualification.area, expectedText, answer);
+  }
+});
+
+test('não confunde capacidade por hora com o tamanho da área do lead', () => {
+  const lead = state();
+  lead.stage = STAGES.AGRO_AREA;
+  lead.qualification.segment = 'agro';
+  const progress = advanceQualification(lead, 'A máquina faz 20 hectares por hora?', 'pt-BR');
+  assert.equal(progress.completed, false);
+  assert.equal(lead.stage, STAGES.AGRO_AREA);
+  assert.equal(lead.qualification.areaHectares, null);
+});
+
 test('qualifica um lead urbano até o perfil de atuação', () => {
   const lead = state();
   let progress = advanceQualification(lead, 'Urbano');

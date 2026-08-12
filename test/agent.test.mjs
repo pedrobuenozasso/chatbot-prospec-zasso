@@ -73,6 +73,27 @@ test('núcleo independente de canal qualifica, deduplica e não reinicia após h
   assert.equal(result.stage, 'new');
 });
 
+test('conclui a triagem quando o lead informa hectares dentro de uma frase natural', async () => {
+  const conversationId = 'whatsapp:test:area-natural@s.whatsapp.net';
+  await processInboundMessage({ conversationId, messageId: 'area-natural-1', text: 'Olá', firstName: 'Carlos' });
+  await processInboundMessage({ conversationId, messageId: 'area-natural-2', text: 'Agricultura', firstName: 'Carlos' });
+  await processInboundMessage({ conversationId, messageId: 'area-natural-3', text: 'Campinas/SP', firstName: 'Carlos' });
+  await processInboundMessage({ conversationId, messageId: 'area-natural-4', text: 'Café', firstName: 'Carlos' });
+
+  const result = await processInboundMessage({
+    conversationId,
+    messageId: 'area-natural-5',
+    text: 'Temos uma associação, trabalhamos no compartilhamento de máquinas. Posso estimar em uma área aproximada de 20 ha.',
+    firstName: 'Carlos',
+  });
+
+  assert.equal(result.qualified, true);
+  assert.equal(result.stage, 'completed');
+  assert.match(result.messages.join('\n'), /time comercial/i);
+  const prefilled = new URL(result.messages[1].match(/https:\/\/wa\.me\/\S+/)[0]).searchParams.get('text');
+  assert.match(prefilled, /Área: 20 hectares/);
+});
+
 test('prompt injection não avança a qualificação', async () => {
   const conversationId = 'whatsapp:test:5511888888888@s.whatsapp.net';
   await processInboundMessage({ conversationId, messageId: 'injection-1', text: 'Olá', firstName: 'Bia' });

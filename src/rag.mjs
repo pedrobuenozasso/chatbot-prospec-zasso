@@ -1,6 +1,7 @@
 import { mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { config, projectRoot } from './config.mjs';
+import { parseAreaAnswer } from './area.mjs';
 import { languageName, normalizeLanguage, t } from './i18n.mjs';
 import { questionFingerprint, recordEvent } from './observability.mjs';
 
@@ -378,7 +379,7 @@ export function localQualificationAssessment(stage, text) {
       : { kind: 'invalid' };
   }
   if (stage === 'agro_area') {
-    return /^(?:\d[\d.,\s]*|\d[\d.,\s]*\s*(?:ha|hectare|hectares|hectarea|hectareas|hektar))$/.test(normalized)
+    return parseAreaAnswer(text, detectLanguage(text))
       ? { kind: 'answer' }
       : { kind: 'invalid' };
   }

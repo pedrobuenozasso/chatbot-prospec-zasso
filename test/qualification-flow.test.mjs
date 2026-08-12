@@ -77,6 +77,21 @@ test('reconhece número isolado como área quando a etapa solicita hectares', ()
   }
 });
 
+test('reconhece área dentro de uma resposta natural e em metros quadrados', () => {
+  const answers = [
+    'Temos uma associação, trabalhamos no compartilhamento de máquinas. Posso estimar em uma área aproximada de 20 ha.',
+    'Em média 500 hectares.',
+    '200.000 metros quadrados.',
+    'Our total area is roughly 50 hectares.',
+    'Die Fläche beträgt ungefähr 80 Hektar.',
+    'La superficie est d’environ 75 hectares.',
+    'Trabajamos unas 60 hectáreas.',
+  ];
+  for (const answer of answers) {
+    assert.equal(localQualificationAssessment('agro_area', answer).kind, 'answer', answer);
+  }
+});
+
 test('aceita cidades curtas capitalizadas sem aceitar termos bloqueados', () => {
   for (const city of ['Lyon', 'Bonn', 'Paris', 'Itu', 'Jaú']) {
     assert.equal(localQualificationAssessment('region', city).kind, 'answer');
