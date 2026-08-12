@@ -1,5 +1,5 @@
 import { createOrUpdateUser, closeDatabase } from './database.mjs';
-import { assertSecureMonitoringConfig, monitoringConfig } from './config.mjs';
+import { assertSecureMonitoringConfig, isAllowedAdminEmail } from './config.mjs';
 import { encryptSecret, randomTotpSecret, totpUri } from './security.mjs';
 
 assertSecureMonitoringConfig();
@@ -10,7 +10,7 @@ const displayName = String(displayNameInput || '').trim();
 const role = ['viewer', 'reviewer', 'admin'].includes(roleInput) ? roleInput : 'admin';
 const password = String(passwordInput || '');
 
-if (!email.endsWith(`@${monitoringConfig.allowedEmailDomain}`) || !displayName || password.length < 14) {
+if (!isAllowedAdminEmail(email) || !displayName || password.length < 14) {
   console.error('Uso: node monitoring/create-user.mjs email@zasso.com "Nome" admin "senha-com-14-ou-mais"');
   process.exitCode = 2;
 } else {

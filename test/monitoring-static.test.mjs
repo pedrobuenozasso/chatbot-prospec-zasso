@@ -16,3 +16,14 @@ test('compose mantém painel separado e atrás do HTTPS do proxy', async () => {
   assert.match(compose, /tls\.certresolver=letsencrypt/);
   assert.doesNotMatch(compose, /ports:/);
 });
+
+test('implantação Vercel usa proxy fixo e não recebe credenciais do banco', async () => {
+  const [configuration, proxy] = await Promise.all([
+    readFile(new URL('../vercel.json', import.meta.url), 'utf8'),
+    readFile(new URL('../api/[...path].mjs', import.meta.url), 'utf8'),
+  ]);
+  assert.doesNotMatch(configuration + proxy, /CLOUDSQL_DB_PASSWORD|DATABASE_PASSWORD/);
+  assert.match(proxy, /MONITORING_UPSTREAM_ORIGIN/);
+  assert.match(proxy, /x-monitoring-proxy-token/);
+  assert.match(proxy, /\^https:/);
+});

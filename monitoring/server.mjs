@@ -24,7 +24,7 @@ import {
   sessionUser,
   setUserActive,
 } from './database.mjs';
-import { monitoringConfig, assertSecureMonitoringConfig } from './config.mjs';
+import { monitoringConfig, assertSecureMonitoringConfig, isAllowedAdminEmail } from './config.mjs';
 import {
   decryptSecret,
   encryptSecret,
@@ -141,7 +141,13 @@ function roleAtLeast(userRole, required) {
 async function authenticate(request) {
   const token = cookies(request)[sessionCookie];
   const user = await sessionUser(token);
-  return user ? { ...user, token } : null;
+  return user && isAllowedAdminEmail(user.email) ? { ...user, token } : null;
+}
+
+function validProxy(request) {
+  if (!monitoringConfig.requireProxy) return true;
+  const supplied = clean(request.headers['x-monitoring-proxy-token'], 300);
+  return Boolean(supplied) && sha256(supplied) === sha256(monitoringConfig.proxyToken);
 }
 
 function requireCsrf(request, user) {
@@ -178,7 +184,7 @@ async function handleLogin(request, response) {
   const password = String(body.password || '').slice(0, 300);
   const totp = clean(body.totp, 12);
   const user = await findUserByEmail(email);
-  const validDomain = email.endsWith(`@${monitoringConfig.allowedEmailDomain}`);
+  const validDomain = isAllowedAdminEmail(email);
   const validPassword = await verifyPassword(password, user?.password_hash || await dummyPasswordHash);
   const locked = user?.locked_until && new Date(user.locked_until).getTime() > Date.now();
   let validTotp = false;
@@ -202,6 +208,7 @@ async function handleLogin(request, response) {
 }
 
 async function api(request, response, url) {
+  if (!validProxy(request)) return json(response, 404, { error: 'Rota não encontrada.' });
   if (request.method === 'POST' && url.pathname === '/api/login') return handleLogin(request, response);
   const user = await authenticate(request);
   if (!user) return json(response, 401, { error: 'Sessão expirada.' });
@@ -274,7 +281,7 @@ async function api(request, response, url) {
     if (!roleAtLeast(user.role, 'admin')) return json(response, 403, { error: 'Permissão insuficiente.' });
     const body = await readBody(request);
     const email = clean(body.email, 254).toLowerCase();
-    if (!email.endsWith(`@${monitoringConfig.allowedEmailDomain}`)) return json(response, 400, { error: 'Use um e-mail corporativo autorizado.' });
+    if (!isAllowedAdminEmail(email)) return json(response, 400, { error: 'Este e-mail não está autorizado.' });
     if (String(body.password || '').length < 14) return json(response, 400, { error: 'A senha temporária deve ter pelo menos 14 caracteres.' });
     if (!clean(body.displayName, 120)) return json(response, 400, { error: 'Informe o nome do usuário.' });
     const role = ['viewer', 'reviewer', 'admin'].includes(body.role) ? body.role : 'viewer';

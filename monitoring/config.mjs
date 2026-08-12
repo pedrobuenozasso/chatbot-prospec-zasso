@@ -27,7 +27,11 @@ export const monitoringConfig = Object.freeze({
   healthRetentionDays: integer('MONITORING_HEALTH_RETENTION_DAYS', 90, 7, 365),
   passwordPepper: process.env.MONITORING_PASSWORD_PEPPER || '',
   encryptionKey: process.env.MONITORING_ENCRYPTION_KEY || '',
+  proxyToken: process.env.MONITORING_PROXY_TOKEN || '',
+  requireProxy: boolean('MONITORING_REQUIRE_PROXY', false),
   allowedEmailDomain: (process.env.MONITORING_ALLOWED_EMAIL_DOMAIN || 'zasso.com').toLowerCase(),
+  allowedEmails: Object.freeze(String(process.env.MONITORING_ALLOWED_EMAILS || '')
+    .split(',').map((email) => email.trim().toLowerCase()).filter(Boolean)),
   databaseHost: process.env.DATABASE_HOST || process.env.PGHOST || 'cloudsql-proxy-pool',
   databasePort: integer('DATABASE_PORT', process.env.PGPORT || 5432, 1, 65535),
   databaseName: process.env.DATABASE_NAME || process.env.CLOUDSQL_DB_NAME || process.env.PGDATABASE || '',
@@ -52,8 +56,15 @@ export function assertSecureMonitoringConfig() {
   const missing = [];
   if (monitoringConfig.passwordPepper.length < 32) missing.push('MONITORING_PASSWORD_PEPPER');
   if (monitoringConfig.encryptionKey.length < 32) missing.push('MONITORING_ENCRYPTION_KEY');
+  if (monitoringConfig.requireProxy && monitoringConfig.proxyToken.length < 32) missing.push('MONITORING_PROXY_TOKEN');
   if (!monitoringConfig.databaseName) missing.push('DATABASE_NAME');
   if (!monitoringConfig.databaseUser) missing.push('DATABASE_USER');
   if (!monitoringConfig.databasePassword) missing.push('DATABASE_PASSWORD');
   if (missing.length) throw new Error(`Configuração obrigatória ausente ou fraca: ${missing.join(', ')}`);
+}
+
+export function isAllowedAdminEmail(value) {
+  const email = String(value || '').trim().toLowerCase();
+  if (monitoringConfig.allowedEmails.length) return monitoringConfig.allowedEmails.includes(email);
+  return email.endsWith(`@${monitoringConfig.allowedEmailDomain}`);
 }
