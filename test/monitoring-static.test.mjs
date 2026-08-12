@@ -14,6 +14,7 @@ test('compose mantém painel separado e atrás do HTTPS do proxy', async () => {
   assert.match(compose, /zasso-monitoring:/);
   assert.match(compose, /entrypoints=websecure/);
   assert.match(compose, /tls\.certresolver=letsencrypt/);
+  assert.match(compose, /MONITORING_PUBLIC_ORIGIN:-https:\/\/zasso-monitoring/);
   assert.doesNotMatch(compose, /ports:/);
 });
 

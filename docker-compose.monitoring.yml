@@ -10,7 +10,7 @@ services:
     environment:
       MONITORING_HOST: 0.0.0.0
       MONITORING_PORT: 3100
-      MONITORING_PUBLIC_ORIGIN: "https://zasso-monitoring.srv1522435.hstgr.cloud"
+      MONITORING_PUBLIC_ORIGIN: "${MONITORING_PUBLIC_ORIGIN:-https://zasso-monitoring.srv1522435.hstgr.cloud}"
       MONITORING_SECURE_COOKIES: "true"
       MONITORING_TRUST_PROXY: "true"
       DATABASE_HOST: cloudsql-proxy-pool
