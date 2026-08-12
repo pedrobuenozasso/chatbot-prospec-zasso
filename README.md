@@ -115,6 +115,10 @@ Os guardrails e o checklist antes de abrir o bot além do piloto estão em [docs
 npm test
 ```
 
+## Painel de monitoramento
+
+O painel administrativo separado acompanha saúde, conversas, revisões, auditoria e sugestões controladas de FAQ. Ele exige login corporativo, senha forte e MFA, e não publica conteúdo automaticamente no RAG. Arquitetura, retenção e implantação estão em [docs/MONITORING_PANEL.md](docs/MONITORING_PANEL.md).
+
 ## Segredos
 
 Tokens e configurações locais pertencem a `.env`, que nunca deve ser versionado.

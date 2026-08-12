@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="robots" content="noindex,nofollow,noarchive">
+    <title>Zasso Monitor</title>
+    <link rel="stylesheet" href="/styles.css">
+  </head>
+  <body>
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+    <main id="login-view" class="login-view">
+      <section class="login-panel" aria-labelledby="login-title">
+        <div class="brand-mark" aria-hidden="true">Z</div>
+        <p class="eyebrow">ZASSO · OPERAÇÕES</p>
+        <h1 id="login-title">Monitoramento do atendimento</h1>
+        <p class="login-copy">Acesso restrito para acompanhar conversas, saúde do bot e revisões de qualidade.</p>
+        <form id="login-form" class="login-form">
+          <label>E-mail corporativo<input name="email" type="email" autocomplete="username" required placeholder="nome@zasso.com"></label>
+          <label>Senha<input name="password" type="password" autocomplete="current-password" minlength="14" required></label>
+          <label>Código do autenticador<input name="totp" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" required placeholder="000000"></label>
+          <button class="primary-button" type="submit">Entrar com segurança</button>
+          <p id="login-error" class="form-error" role="alert"></p>
+        </form>
+        <p class="security-note">Sessão protegida, MFA obrigatório e acessos auditados.</p>
+      </section>
+      <aside class="login-aside" aria-hidden="true">
+        <div class="signal-grid"></div>
+        <div class="login-status-card">
+          <span class="status-dot online"></span>
+          <div><strong>Operação observável</strong><span>Saúde, conversas e conhecimento em um só lugar.</span></div>
+        </div>
+      </aside>
+    </main>
+
+    <div id="app-view" class="app-view hidden">
+      <aside class="sidebar">
+        <div class="sidebar-brand"><span class="brand-mark small">Z</span><div><strong>Zasso Monitor</strong><span>Atendimento digital</span></div></div>
+        <nav id="main-nav" aria-label="Navegação principal">
+          <button data-view="overview" class="nav-item active"><span>⌁</span> Visão geral</button>
+          <button data-view="conversations" class="nav-item"><span>◫</span> Conversas</button>
+          <button data-view="quality" class="nav-item"><span>◇</span> Qualidade e FAQs</button>
+          <button data-view="security" class="nav-item"><span>⌾</span> Segurança</button>
+          <button data-view="users" class="nav-item admin-only"><span>◎</span> Acessos</button>
+        </nav>
+        <div class="sidebar-footer">
+          <div id="sidebar-user" class="sidebar-user"></div>
+          <button id="logout-button" class="text-button">Sair</button>
+        </div>
+      </aside>
+
+      <section class="workspace">
+        <header class="topbar">
+          <div><p class="eyebrow" id="page-eyebrow">OPERAÇÃO EM TEMPO REAL</p><h1 id="page-title">Visão geral</h1></div>
+          <div class="topbar-actions"><span id="last-refresh" class="last-refresh"></span><button id="refresh-button" class="secondary-button">Atualizar</button></div>
+        </header>
+
+        <div id="loading" class="loading hidden"><span></span><p>Atualizando os dados…</p></div>
+
+        <section id="view-overview" class="view-section">
+          <div id="health-banner" class="health-banner"></div>
+          <div id="metric-grid" class="metric-grid"></div>
+          <div class="dashboard-grid">
+            <article class="panel wide"><div class="panel-heading"><div><p class="panel-kicker">DISTRIBUIÇÃO</p><h2>Leads por segmento</h2></div><span class="period-pill">30 dias</span></div><div id="segment-chart" class="bar-chart"></div></article>
+            <article class="panel"><div class="panel-heading"><div><p class="panel-kicker">IDIOMAS</p><h2>Conversas atendidas</h2></div></div><div id="language-list" class="rank-list"></div></article>
+            <article class="panel"><div class="panel-heading"><div><p class="panel-kicker">JORNADA</p><h2>Status das conversas</h2></div></div><div id="status-list" class="rank-list"></div></article>
+            <article class="panel wide"><div class="panel-heading"><div><p class="panel-kicker">ÚLTIMAS INTERAÇÕES</p><h2>Conversas recentes</h2></div><button class="text-button" data-open-view="conversations">Ver todas</button></div><div id="recent-conversations" class="table-wrap"></div></article>
+          </div>
+        </section>
+
+        <section id="view-conversations" class="view-section hidden">
+          <div class="filter-bar">
+            <label class="search-field"><span>⌕</span><input id="conversation-search" type="search" placeholder="Buscar protocolo, nome ou região"></label>
+            <select id="conversation-status" aria-label="Filtrar por status"><option value="">Todos os status</option><option value="active">Em atendimento</option><option value="qualified">Qualificada</option><option value="expired">Expirada</option></select>
+            <select id="conversation-segment" aria-label="Filtrar por segmento"><option value="">Todos os segmentos</option><option value="agro">Agro</option><option value="urban">Urbano</option></select>
+          </div>
+          <article class="panel"><div class="panel-heading"><div><p class="panel-kicker">HISTÓRICO PROTEGIDO</p><h2>Conversas</h2></div><span id="conversation-total" class="period-pill"></span></div><div id="conversation-table" class="table-wrap"></div><div id="conversation-pagination" class="pagination"></div></article>
+        </section>
+
+        <section id="view-quality" class="view-section hidden">
+          <div class="action-hero"><div><p class="panel-kicker">MELHORIA CONTÍNUA</p><h2>Revisão semanal assistida por IA</h2><p>A análise remove dados pessoais, identifica falhas e gera sugestões. Nenhuma FAQ é publicada sem aprovação e fonte oficial.</p></div><button id="run-analysis" class="primary-button reviewer-only">Analisar últimos 7 dias</button></div>
+          <div class="dashboard-grid"><article class="panel"><div class="panel-heading"><div><p class="panel-kicker">EXECUÇÕES</p><h2>Análises recentes</h2></div></div><div id="analysis-runs" class="stack-list"></div></article><article class="panel wide"><div class="panel-heading"><div><p class="panel-kicker">FILA DE REVISÃO</p><h2>Sugestões de FAQ</h2></div></div><div id="faq-candidates" class="candidate-list"></div></article></div>
+        </section>
+
+        <section id="view-security" class="view-section hidden">
+          <div id="security-metrics" class="metric-grid compact"></div>
+          <div class="dashboard-grid"><article class="panel"><div class="panel-heading"><div><p class="panel-kicker">GUARDRAILS</p><h2>Eventos dos últimos 7 dias</h2></div></div><div id="event-counts" class="rank-list"></div></article><article class="panel wide"><div class="panel-heading"><div><p class="panel-kicker">TRILHA DE AUDITORIA</p><h2>Acessos e alterações</h2></div></div><div id="audit-table" class="table-wrap"></div></article></div>
+        </section>
+
+        <section id="view-users" class="view-section hidden">
+          <div class="dashboard-grid"><article class="panel"><div class="panel-heading"><div><p class="panel-kicker">NOVO ACESSO</p><h2>Criar usuário</h2></div></div><form id="user-form" class="settings-form"><label>Nome<input name="displayName" required maxlength="120"></label><label>E-mail corporativo<input name="email" type="email" required></label><label>Senha temporária<input name="password" type="password" minlength="14" required></label><label>Papel<select name="role"><option value="viewer">Visualizador</option><option value="reviewer">Revisor</option><option value="admin">Administrador</option></select></label><button class="primary-button" type="submit">Criar com MFA</button></form><div id="totp-result" class="totp-result hidden"></div></article><article class="panel wide"><div class="panel-heading"><div><p class="panel-kicker">CONTROLE DE ACESSO</p><h2>Usuários autorizados</h2></div></div><div id="user-table" class="table-wrap"></div></article></div>
+        </section>
+      </section>
+    </div>
+
+    <aside id="conversation-drawer" class="drawer" aria-hidden="true">
+      <div class="drawer-backdrop" data-close-drawer></div>
+      <section class="drawer-panel" role="dialog" aria-modal="true" aria-labelledby="drawer-title">
+        <header class="drawer-header"><div><p class="panel-kicker">CONVERSA AUDITADA</p><h2 id="drawer-title">Detalhes</h2></div><button class="icon-button" data-close-drawer aria-label="Fechar">×</button></header>
+        <div id="drawer-content" class="drawer-content"></div>
+      </section>
+    </aside>
+
+    <script src="/app.js" defer></script>
+  </body>
+</html>

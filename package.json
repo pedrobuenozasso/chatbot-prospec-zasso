@@ -9,6 +9,8 @@
     "search": "node src/cli.mjs search",
     "api": "node src/server.mjs",
     "telegram": "node src/telegram.mjs",
+    "monitor": "node monitoring/start.mjs",
+    "monitor:user": "node monitoring/create-user.mjs",
     "test": "node --test"
   },
   "engines": {

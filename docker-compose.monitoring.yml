@@ -1,0 +1,37 @@
+services:
+  zasso-monitoring:
+    build:
+      context: .
+      dockerfile: Dockerfile.monitoring
+    container_name: zasso-monitoring
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      MONITORING_HOST: 0.0.0.0
+      MONITORING_PORT: 3100
+      MONITORING_PUBLIC_ORIGIN: "https://zasso-monitoring.srv1522435.hstgr.cloud"
+      MONITORING_SECURE_COOKIES: "true"
+      MONITORING_TRUST_PROXY: "true"
+      DATABASE_HOST: cloudsql-proxy-pool
+      DATABASE_PORT: 5432
+      DATABASE_NAME: "${CLOUDSQL_DB_NAME}"
+      DATABASE_USER: "${CLOUDSQL_DB_USER}"
+      DATABASE_PASSWORD: "${CLOUDSQL_DB_PASSWORD}"
+      DATABASE_SCHEMA: "${CLOUDSQL_DB_SCHEMA:-public}"
+      MONITORING_CHATBOT_HEALTH_URL: http://zasso-chatbot:3000/healthz
+      MONITORING_N8N_HEALTH_URL: http://n8n:5678/healthz
+      MONITORING_EVENTS_PATH: /chatbot-logs/events.jsonl
+    expose:
+      - "3100"
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.zasso-monitoring.rule=Host(`zasso-monitoring.srv1522435.hstgr.cloud`)
+      - traefik.http.routers.zasso-monitoring.entrypoints=websecure
+      - traefik.http.routers.zasso-monitoring.tls.certresolver=letsencrypt
+      - traefik.http.services.zasso-monitoring.loadbalancer.server.port=3100
+    networks:
+      - n8n
+      - sacf
+    volumes:
+      - zasso_chatbot_logs:/chatbot-logs:ro

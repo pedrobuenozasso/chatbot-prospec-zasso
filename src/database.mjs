@@ -330,6 +330,10 @@ export async function persistInteraction(payload, result, state) {
       { stageAfter: result.stage, duplicate: result.duplicate },
     );
     for (const [index, message] of result.messages.entries()) {
+      const sources = (Array.isArray(result.sources) ? result.sources : [])
+        .map((source) => source?.faqId)
+        .filter(Boolean)
+        .slice(0, 10);
       await insertMessage(
         client,
         key,
@@ -337,7 +341,12 @@ export async function persistInteraction(payload, result, state) {
         'outbound',
         message,
         result.language,
-        { stage: result.stage, handoffStatus: result.handoffStatus },
+        {
+          stage: result.stage,
+          handoffStatus: result.handoffStatus,
+          sources,
+          answerMode: result.answerMode || null,
+        },
       );
     }
     await client.query('COMMIT');
