@@ -78,7 +78,7 @@ return result.messages
         text: ctaCopy[languageKey].body,
         ctaLabel: ctaCopy[languageKey].label,
         ctaUrl,
-        delay: 900,
+        delay: 5000,
         order: index
       } };
     }
@@ -87,7 +87,7 @@ return result.messages
       number: inbound.number,
       messageType: 'text',
       text: text.slice(0, 4000),
-      delay: Math.min(2500, Math.max(900, 700 + text.length * 7)),
+      delay: 5000,
       order: index
     } };
   });`;
@@ -170,14 +170,15 @@ export function applyCommercialCta(workflow, {
     name: 'Enviar CTA pela Meta',
     type: 'n8n-nodes-base.httpRequest',
     typeVersion: 4.2,
-    position: [loopX + 480, loopY],
+    position: [loopX + 720, loopY],
     credentials: {
       httpHeaderAuth: { id: credentialId, name: credentialName },
     },
   });
 
   evolution.position = [loopX + 480, loopY + 160];
-  pause.position = [loopX + 720, loopY + 80];
+  pause.parameters.amount = 5;
+  pause.position = [loopX + 480, loopY];
   updated.connections['Uma Mensagem por Vez'].main[1] = [{
     node: 'É CTA Comercial?',
     type: 'main',
@@ -185,12 +186,18 @@ export function applyCommercialCta(workflow, {
   }];
   updated.connections['É CTA Comercial?'] = {
     main: [
-      [{ node: 'Enviar CTA pela Meta', type: 'main', index: 0 }],
+      [{ node: 'Pausa Natural', type: 'main', index: 0 }],
       [{ node: 'Enviar pela Evolution', type: 'main', index: 0 }],
     ],
   };
+  updated.connections['Enviar pela Evolution'] = {
+    main: [[{ node: 'Uma Mensagem por Vez', type: 'main', index: 0 }]],
+  };
+  updated.connections['Pausa Natural'] = {
+    main: [[{ node: 'Enviar CTA pela Meta', type: 'main', index: 0 }]],
+  };
   updated.connections['Enviar CTA pela Meta'] = {
-    main: [[{ node: 'Pausa Natural', type: 'main', index: 0 }]],
+    main: [[{ node: 'Uma Mensagem por Vez', type: 'main', index: 0 }]],
   };
 
   return updated;
