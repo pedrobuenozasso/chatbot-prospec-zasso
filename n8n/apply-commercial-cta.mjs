@@ -53,16 +53,14 @@ function commercialUrlFrom(text) {
     const position = tail.indexOf(whitespace);
     if (position >= 0) end = Math.min(end, position);
   }
-  try {
-    const parsed = new URL(tail.slice(0, end));
-    if (parsed.protocol !== 'https:'
-      || parsed.hostname !== 'wa.me'
-      || parsed.pathname !== '/${COMMERCIAL_WHATSAPP_NUMBER}'
-      || !parsed.searchParams.get('text')) return '';
-    return parsed.toString();
-  } catch {
-    return '';
-  }
+  const candidate = tail.slice(0, end);
+  const encodedSummary = candidate.slice(commercialPrefix.length);
+  if (!encodedSummary
+    || encodedSummary.length > 3500
+    || encodedSummary.includes('&')
+    || encodedSummary.includes('#')
+    || !/^[A-Za-z0-9%!'()*._~-]+$/.test(encodedSummary)) return '';
+  return candidate;
 }
 
 return result.messages

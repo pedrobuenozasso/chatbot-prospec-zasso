@@ -67,6 +67,7 @@ test('converte somente o link comercial aprovado em botão CTA oficial', () => {
   assert.equal(result.json.ctaLabel, 'Falar com a equipe');
   assert.equal(result.json.ctaUrl, commercialUrl);
   assert.doesNotMatch(result.json.text, /wa\.me|https?:\/\//i);
+  assert.doesNotMatch(preparer.parameters.jsCode, /new URL\(/);
 });
 
 test('aguarda cinco segundos antes de cada mensagem e do CTA', () => {
@@ -93,6 +94,7 @@ test('não transforma link externo ou outro número em CTA comercial', () => {
     'Veja https://example.com/alguma-coisa',
     'https://wa.me/5511999999999?text=Outro',
     'https://wa.me/5511967702212',
+    'https://wa.me/5511967702212?text=Resumo&redirect=https://example.com',
   ]) {
     const [result] = prepareMessages([message]);
     assert.equal(result.json.messageType, 'text');
