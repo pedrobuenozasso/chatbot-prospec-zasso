@@ -12,13 +12,8 @@ function requestPath(value) {
   return path;
 }
 
-function appendQuery(target, query) {
-  for (const [key, raw] of Object.entries(query || {})) {
-    if (key === 'path') continue;
-    for (const value of Array.isArray(raw) ? raw : [raw]) {
-      if (value != null) target.searchParams.append(key, String(value));
-    }
-  }
+function appendQuery(target, searchParams) {
+  for (const [key, value] of searchParams) target.searchParams.append(key, value);
 }
 
 function splitSetCookie(value) {
@@ -32,10 +27,11 @@ export default async function handler(request, response) {
     return response.status(503).json({ error: 'Monitoramento temporariamente indisponível.' });
   }
 
+  const incoming = new URL(request.url, 'https://zasso-monitoring.invalid');
   let path;
-  try { path = requestPath(request.query.path); } catch { return response.status(404).end(); }
+  try { path = requestPath(incoming.pathname.replace(/^\/api\/?/, '')); } catch { return response.status(404).end(); }
   const target = new URL(`/api/${path}`, `${upstreamOrigin}/`);
-  appendQuery(target, request.query);
+  appendQuery(target, incoming.searchParams);
 
   const headers = {
     accept: 'application/json',
