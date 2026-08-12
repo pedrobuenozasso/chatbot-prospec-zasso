@@ -56,17 +56,17 @@ test('núcleo independente de canal qualifica, deduplica e não reinicia após h
   result = await processInboundMessage({ conversationId, messageId: 'message-6', text: 'Obrigado', firstName: 'Ana' });
   assert.equal(result.stage, 'completed');
   assert.equal(result.messages.length, 1);
-  assert.match(result.messages[0], /time comercial pelo link que enviei acima/i);
+  assert.match(result.messages[0], /time comercial pelo botão que enviei acima/i);
 
   result = await processInboundMessage({ conversationId, messageId: 'message-7', text: 'A tecnologia é segura?', firstName: 'Ana' });
   assert.equal(result.stage, 'completed');
   assert.equal(result.messages.length, 1);
-  assert.match(result.messages[0], /time comercial pelo link que enviei acima/i);
+  assert.match(result.messages[0], /time comercial pelo botão que enviei acima/i);
   assert.doesNotMatch(result.messages[0], /alta tensão|equipamento|operador/i);
 
   result = await processInboundMessage({ conversationId, messageId: 'message-8', text: '/help', firstName: 'Ana' });
   assert.equal(result.stage, 'completed');
-  assert.match(result.messages[0], /time comercial pelo link que enviei acima/i);
+  assert.match(result.messages[0], /time comercial pelo botão que enviei acima/i);
 
   result = await processInboundMessage({ conversationId, messageId: 'message-9', text: '/reset', firstName: 'Ana' });
   assert.equal(result.reset, true);
@@ -106,7 +106,7 @@ test('reinicia a triagem depois de 15 dias sem contato, mesmo após handoff', as
 
   assert.equal(result.stage, 'segment');
   assert.equal(result.handoffStatus, 'not_ready');
-  assert.doesNotMatch(result.messages.join('\n'), /link que enviei acima/i);
+  assert.doesNotMatch(result.messages.join('\n'), /botão que enviei acima/i);
 });
 
 test('prompt injection inicial não entra no resumo enviado ao comercial', async () => {
@@ -237,7 +237,7 @@ test('conclui e redireciona o pós-handoff no idioma da conversa', async () => {
       completed: /Já organizei suas informações/,
       cta: /Toque no link abaixo/,
       prefill: /Resumo do meu atendimento/,
-      reminder: /time comercial pelo link que enviei acima/,
+      reminder: /time comercial pelo botão que enviei acima/,
     },
     {
       language: 'en-US',
@@ -246,7 +246,7 @@ test('conclui e redireciona o pós-handoff no idioma da conversa', async () => {
       completed: /organized your information/,
       cta: /Tap the link below/,
       prefill: /Summary of my request/,
-      reminder: /sales team using the link I sent above/,
+      reminder: /sales team using the button I sent above/,
     },
     {
       language: 'de-DE',
@@ -255,7 +255,7 @@ test('conclui e redireciona o pós-handoff no idioma da conversa', async () => {
       completed: /Angaben zusammengestellt/,
       cta: /Tippen Sie auf den Link/,
       prefill: /Zusammenfassung meiner Anfrage/,
-      reminder: /Vertriebsteam über den oben gesendeten Link/,
+      reminder: /Vertriebsteam über die oben gesendete Schaltfläche/,
     },
     {
       language: 'fr-FR',
@@ -264,7 +264,7 @@ test('conclui e redireciona o pós-handoff no idioma da conversa', async () => {
       completed: /organisé vos informations/,
       cta: /Touchez le lien ci-dessous/,
       prefill: /Résumé de ma demande/,
-      reminder: /équipe commerciale à l’aide du lien envoyé ci-dessus/,
+      reminder: /équipe commerciale à l’aide du bouton envoyé ci-dessus/,
     },
     {
       language: 'es-ES',
@@ -273,7 +273,7 @@ test('conclui e redireciona o pós-handoff no idioma da conversa', async () => {
       completed: /organicé tu información/,
       cta: /Toca el siguiente enlace/,
       prefill: /Resumen de mi consulta/,
-      reminder: /equipo comercial mediante el enlace que envié arriba/,
+      reminder: /equipo comercial mediante el botón que envié arriba/,
     },
   ];
 
