@@ -9,6 +9,15 @@ test('painel não depende de scripts externos e declara noindex', async () => {
   assert.match(html, /app\.js/);
   assert.doesNotMatch(html, /type="password"|Código do autenticador/);
   assert.match(html, /Código recebido por e-mail/);
+  assert.match(html, /brand\.css/);
+  assert.match(html, /zasso-logo-(?:black|white)\.png/);
+});
+
+test('identidade visual utiliza somente imagens locais da Zasso', async () => {
+  const assets = await Promise.all([
+    'zasso-logo-black.png', 'zasso-logo-white.png', 'zasso-e-coffee.png', 'zasso-raiden.png',
+  ].map((name) => readFile(new URL(`../monitoring/public/assets/${name}`, import.meta.url))));
+  assert.ok(assets.every((asset) => asset.length > 1000));
 });
 
 test('painel abre o histórico pela rota compatível com a Vercel e identifica lead e bot', async () => {

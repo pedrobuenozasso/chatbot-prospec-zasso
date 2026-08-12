@@ -4,20 +4,22 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="robots" content="noindex,nofollow,noarchive">
-    <title>Zasso Monitor</title>
+    <meta name="theme-color" content="#050706">
+    <title>Zasso Intelligence · Monitoramento</title>
     <link rel="stylesheet" href="/styles.css">
     <link rel="stylesheet" href="/login.css">
     <link rel="stylesheet" href="/conversation.css">
+    <link rel="stylesheet" href="/brand.css">
   </head>
   <body>
     <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
     <main id="login-view" class="login-view">
       <section class="login-panel" aria-labelledby="login-title">
-        <div class="brand-mark" aria-hidden="true">Z</div>
-        <p class="eyebrow">ZASSO · OPERAÇÕES</p>
-        <h1 id="login-title">Monitoramento do atendimento</h1>
-        <p class="login-copy">Informe seu e-mail autorizado. Enviaremos um código de acesso de uso único.</p>
+        <img class="login-logo" src="/assets/zasso-logo-black.png" alt="Zasso">
+        <p class="eyebrow">INTELLIGENCE · LEAD OPERATIONS</p>
+        <h1 id="login-title">Monitoramento do atendimento inteligente.</h1>
+        <p class="login-copy">Acompanhe conversas, qualidade e segurança em uma visão única da operação.</p>
         <form id="login-form" class="login-form" data-step="request">
           <label>E-mail corporativo<input name="email" type="email" autocomplete="username" required placeholder="nome@zasso.com.br"></label>
           <div id="code-fields" class="hidden">
@@ -28,20 +30,26 @@
           <div id="login-secondary-actions" class="login-actions hidden"><button id="resend-code" class="text-button" type="button">Enviar novo código</button><button id="change-email" class="text-button" type="button">Corrigir e-mail</button></div>
           <p id="login-error" class="form-error" role="alert"></p>
         </form>
-        <p class="security-note">Sem senha. Código temporário, sessão protegida e acessos auditados.</p>
+        <div class="login-security"><span aria-hidden="true">✓</span><p>Sem senha. Código temporário, sessão protegida e acessos auditados.</p></div>
       </section>
-      <aside class="login-aside" aria-hidden="true">
-        <div class="signal-grid"></div>
+      <aside class="login-aside">
+        <img class="login-cover" src="/assets/zasso-e-coffee.png" alt="Equipamento E-COFFEE da Zasso em aplicação no cultivo">
+        <div class="login-cover-overlay"></div>
+        <div class="login-aside-copy">
+          <span class="login-aside-index">01 · OPERAÇÃO CONECTADA</span>
+          <strong>Tecnologia no campo.<br>Inteligência no atendimento.</strong>
+          <p>Da primeira mensagem à oportunidade qualificada.</p>
+        </div>
         <div class="login-status-card">
           <span class="status-dot online"></span>
-          <div><strong>Operação observável</strong><span>Saúde, conversas e conhecimento em um só lugar.</span></div>
+          <div><strong>Operação monitorada</strong><span>Saúde, conversas e conhecimento em um só lugar.</span></div>
         </div>
       </aside>
     </main>
 
     <div id="app-view" class="app-view hidden">
       <aside class="sidebar">
-        <div class="sidebar-brand"><span class="brand-mark small">Z</span><div><strong>Zasso Monitor</strong><span>Atendimento digital</span></div></div>
+        <div class="sidebar-brand"><img class="sidebar-logo" src="/assets/zasso-logo-white.png" alt="Zasso"><div><strong>Intelligence</strong><span>Lead Operations</span></div></div>
         <nav id="main-nav" aria-label="Navegação principal">
           <button data-view="overview" class="nav-item active"><span>⌁</span> Visão geral</button>
           <button data-view="conversations" class="nav-item"><span>◫</span> Conversas</button>
@@ -64,6 +72,10 @@
         <div id="loading" class="loading hidden"><span></span><p>Atualizando os dados…</p></div>
 
         <section id="view-overview" class="view-section">
+          <section class="brand-hero">
+            <div class="brand-hero-copy"><p class="panel-kicker">ELECTRIC VEGETATION CONTROL</p><h2>Atendimento que transforma interesse em oportunidade.</h2><p>Visibilidade operacional para acompanhar cada lead, revisar a qualidade das respostas e evoluir a base de conhecimento com segurança.</p><div class="brand-hero-tags"><span>Triagem inteligente</span><span>RAG auditável</span><span>Operação multilíngue</span></div></div>
+            <div class="brand-hero-media"><img src="/assets/zasso-raiden.png" alt="Equipamento elétrico RAIDEN da Zasso"><span>Field-proven technology</span></div>
+          </section>
           <div id="health-banner" class="health-banner"></div>
           <div id="metric-grid" class="metric-grid"></div>
           <div class="dashboard-grid">
