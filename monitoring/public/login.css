@@ -1,0 +1,10 @@
+.security-note.code-note {
+  margin: 8px 0 0;
+}
+
+.login-actions {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  align-items: center;
+}

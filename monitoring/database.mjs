@@ -1,7 +1,7 @@
 import pg from 'pg';
 import { randomUUID } from 'node:crypto';
 import { monitoringConfig } from './config.mjs';
-import { hashPassword, sha256 } from './security.mjs';
+import { hashPassword, secureEqual, sha256 } from './security.mjs';
 
 const { Pool } = pg;
 let pool;
@@ -47,6 +47,103 @@ export async function findUserByEmail(email) {
     [String(email).trim().toLowerCase()],
   );
   return result.rows[0] || null;
+}
+
+function emailCodeHash(id, code) {
+  return sha256(`${id}:${code}:${monitoringConfig.passwordPepper}`);
+}
+
+export async function createEmailLoginCode({ userId, code, ip }) {
+  const client = await database().connect();
+  try {
+    await client.query('BEGIN');
+    const recent = await client.query(
+      `SELECT count(*)::int AS count FROM ${table('chatbot_admin_email_codes')}
+        WHERE user_id = $1 AND created_at >= now() - interval '15 minutes'`,
+      [userId],
+    );
+    if (recent.rows[0].count >= monitoringConfig.emailCodeMaxRequests) {
+      await client.query('ROLLBACK');
+      return { rateLimited: true };
+    }
+    await client.query(
+      `UPDATE ${table('chatbot_admin_email_codes')} SET consumed_at = now()
+        WHERE user_id = $1 AND consumed_at IS NULL`,
+      [userId],
+    );
+    const id = randomUUID();
+    const expiresAt = new Date(Date.now() + monitoringConfig.emailCodeMinutes * 60 * 1000);
+    await client.query(
+      `INSERT INTO ${table('chatbot_admin_email_codes')}
+        (id, user_id, code_hash, request_ip_fingerprint, expires_at)
+       VALUES ($1, $2, $3, $4, $5)`,
+      [id, userId, emailCodeHash(id, code), ip ? sha256(ip) : null, expiresAt],
+    );
+    await client.query('COMMIT');
+    return { id, expiresAt, rateLimited: false };
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+export async function invalidateEmailLoginCode(id) {
+  await database().query(
+    `UPDATE ${table('chatbot_admin_email_codes')} SET consumed_at = now()
+      WHERE id = $1 AND consumed_at IS NULL`,
+    [id],
+  );
+}
+
+export async function verifyEmailLoginCode({ email, code }) {
+  const client = await database().connect();
+  try {
+    await client.query('BEGIN');
+    const result = await client.query(
+      `SELECT c.id, c.code_hash, c.attempts, c.expires_at, c.consumed_at,
+              u.id AS user_id, u.email, u.display_name, u.role, u.active, u.locked_until
+         FROM ${table('chatbot_admin_email_codes')} c
+         JOIN ${table('chatbot_admin_users')} u ON u.id = c.user_id
+        WHERE u.email = $1
+        ORDER BY c.created_at DESC LIMIT 1
+        FOR UPDATE OF c`,
+      [String(email).trim().toLowerCase()],
+    );
+    const row = result.rows[0];
+    const unavailable = !row || !row.active || row.consumed_at
+      || new Date(row.expires_at).getTime() <= Date.now()
+      || row.attempts >= monitoringConfig.emailCodeMaxAttempts
+      || (row.locked_until && new Date(row.locked_until).getTime() > Date.now());
+    if (unavailable) {
+      await client.query('COMMIT');
+      return null;
+    }
+    const valid = secureEqual(emailCodeHash(row.id, code), row.code_hash);
+    if (!valid) {
+      await client.query(
+        `UPDATE ${table('chatbot_admin_email_codes')}
+            SET attempts = LEAST(attempts + 1, $2),
+                consumed_at = CASE WHEN attempts + 1 >= $2 THEN now() ELSE consumed_at END
+          WHERE id = $1`,
+        [row.id, monitoringConfig.emailCodeMaxAttempts],
+      );
+      await client.query('COMMIT');
+      return null;
+    }
+    await client.query(
+      `UPDATE ${table('chatbot_admin_email_codes')} SET consumed_at = now() WHERE id = $1`,
+      [row.id],
+    );
+    await client.query('COMMIT');
+    return { id: row.user_id, email: row.email, display_name: row.display_name, role: row.role, active: row.active };
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
 }
 
 export async function findUserById(id) {
@@ -153,6 +250,9 @@ export async function enforceMonitoringRetention() {
     database().query(
       `DELETE FROM ${table('chatbot_admin_audit_log')} WHERE created_at < now() - ($1 * interval '1 day')`,
       [monitoringConfig.auditRetentionDays],
+    ),
+    database().query(
+      `DELETE FROM ${table('chatbot_admin_email_codes')} WHERE created_at < now() - interval '24 hours'`,
     ),
   ]);
 }

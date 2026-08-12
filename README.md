@@ -117,7 +117,7 @@ npm test
 
 ## Painel de monitoramento
 
-O painel administrativo separado acompanha saúde, conversas, revisões, auditoria e sugestões controladas de FAQ. Ele exige login corporativo, senha forte e MFA, e não publica conteúdo automaticamente no RAG. Arquitetura, retenção e implantação estão em [docs/MONITORING_PANEL.md](docs/MONITORING_PANEL.md).
+O painel administrativo separado acompanha saúde, conversas, revisões, auditoria e sugestões controladas de FAQ. O acesso é sem senha: um código temporário e descartável é enviado pelo SACF Mail Service somente ao e-mail autorizado. O painel não publica conteúdo automaticamente no RAG. Arquitetura, retenção e implantação estão em [docs/MONITORING_PANEL.md](docs/MONITORING_PANEL.md).
 
 ## Segredos
 

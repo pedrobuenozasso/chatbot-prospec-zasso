@@ -6,6 +6,7 @@
     <meta name="robots" content="noindex,nofollow,noarchive">
     <title>Zasso Monitor</title>
     <link rel="stylesheet" href="/styles.css">
+    <link rel="stylesheet" href="/login.css">
   </head>
   <body>
     <div id="toast" class="toast" role="status" aria-live="polite"></div>
@@ -15,15 +16,18 @@
         <div class="brand-mark" aria-hidden="true">Z</div>
         <p class="eyebrow">ZASSO · OPERAÇÕES</p>
         <h1 id="login-title">Monitoramento do atendimento</h1>
-        <p class="login-copy">Acesso restrito para acompanhar conversas, saúde do bot e revisões de qualidade.</p>
-        <form id="login-form" class="login-form">
+        <p class="login-copy">Informe seu e-mail autorizado. Enviaremos um código de acesso de uso único.</p>
+        <form id="login-form" class="login-form" data-step="request">
           <label>E-mail corporativo<input name="email" type="email" autocomplete="username" required placeholder="nome@zasso.com"></label>
-          <label>Senha<input name="password" type="password" autocomplete="current-password" minlength="14" required></label>
-          <label>Código do autenticador<input name="totp" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" required placeholder="000000"></label>
-          <button class="primary-button" type="submit">Entrar com segurança</button>
+          <div id="code-fields" class="hidden">
+            <label>Código recebido por e-mail<input name="code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" placeholder="000000"></label>
+            <p class="security-note code-note">O código vale por 10 minutos e funciona uma única vez.</p>
+          </div>
+          <button id="login-submit" class="primary-button" type="submit">Enviar código</button>
+          <div id="login-secondary-actions" class="login-actions hidden"><button id="resend-code" class="text-button" type="button">Enviar novo código</button><button id="change-email" class="text-button" type="button">Corrigir e-mail</button></div>
           <p id="login-error" class="form-error" role="alert"></p>
         </form>
-        <p class="security-note">Sessão protegida, MFA obrigatório e acessos auditados.</p>
+        <p class="security-note">Sem senha. Código temporário, sessão protegida e acessos auditados.</p>
       </section>
       <aside class="login-aside" aria-hidden="true">
         <div class="signal-grid"></div>
@@ -89,7 +93,7 @@
         </section>
 
         <section id="view-users" class="view-section hidden">
-          <div class="dashboard-grid"><article class="panel"><div class="panel-heading"><div><p class="panel-kicker">NOVO ACESSO</p><h2>Criar usuário</h2></div></div><form id="user-form" class="settings-form"><label>Nome<input name="displayName" required maxlength="120"></label><label>E-mail corporativo<input name="email" type="email" required></label><label>Senha temporária<input name="password" type="password" minlength="14" required></label><label>Papel<select name="role"><option value="viewer">Visualizador</option><option value="reviewer">Revisor</option><option value="admin">Administrador</option></select></label><button class="primary-button" type="submit">Criar com MFA</button></form><div id="totp-result" class="totp-result hidden"></div></article><article class="panel wide"><div class="panel-heading"><div><p class="panel-kicker">CONTROLE DE ACESSO</p><h2>Usuários autorizados</h2></div></div><div id="user-table" class="table-wrap"></div></article></div>
+          <article class="panel"><div class="panel-heading"><div><p class="panel-kicker">CONTROLE DE ACESSO</p><h2>Usuários autorizados</h2></div><span class="period-pill">Código por e-mail</span></div><p class="muted">O acesso é controlado pela lista segura da VPS. Novos e-mails não podem ser adicionados por esta tela.</p><div id="user-table" class="table-wrap"></div></article>
         </section>
       </section>
     </div>

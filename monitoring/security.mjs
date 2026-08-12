@@ -4,6 +4,7 @@ import {
   createHash,
   createHmac,
   randomBytes,
+  randomInt,
   scrypt as scryptCallback,
   timingSafeEqual,
 } from 'node:crypto';
@@ -118,6 +119,14 @@ export function totpUri(secret, email) {
 
 export function newOpaqueToken(bytes = 32) {
   return randomBytes(bytes).toString('base64url');
+}
+
+export function randomLoginCode() {
+  return String(randomInt(100000, 1000000));
+}
+
+export function secureEqual(left, right) {
+  return safeEqual(left, right);
 }
 
 export function redactSensitiveText(value) {

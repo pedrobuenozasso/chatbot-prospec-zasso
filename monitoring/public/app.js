@@ -4,6 +4,7 @@ const state = {
   view: 'overview',
   conversationPage: 1,
   conversationLimit: 30,
+  loginEmail: '',
 };
 
 const byId = (id) => document.getElementById(id);
@@ -60,7 +61,7 @@ async function api(path, options = {}) {
   if (options.method && options.method !== 'GET' && csrf) headers['x-csrf-token'] = csrf;
   const response = await fetch(path, { credentials: 'same-origin', ...options, headers });
   const payload = await response.json().catch(() => ({}));
-  if (response.status === 401 && path !== '/api/login') showLogin();
+  if (response.status === 401 && !path.startsWith('/api/login/')) showLogin();
   if (!response.ok) throw new Error(payload.error || 'Não foi possível concluir a operação.');
   return payload;
 }
@@ -84,6 +85,36 @@ function showLogin(message = '') {
   byId('app-view').classList.add('hidden');
   byId('login-view').classList.remove('hidden');
   byId('login-error').textContent = message;
+}
+
+function resetLoginForm({ preserveEmail = false } = {}) {
+  const form = byId('login-form');
+  const email = form.elements.email;
+  form.dataset.step = 'request';
+  byId('code-fields').classList.add('hidden');
+  byId('login-secondary-actions').classList.add('hidden');
+  byId('login-submit').textContent = 'Enviar código';
+  form.elements.code.required = false;
+  form.elements.code.value = '';
+  email.readOnly = false;
+  if (!preserveEmail) {
+    email.value = '';
+    state.loginEmail = '';
+  }
+  email.focus();
+}
+
+function showCodeStep(email) {
+  const form = byId('login-form');
+  state.loginEmail = email;
+  form.dataset.step = 'verify';
+  form.elements.email.value = email;
+  form.elements.email.readOnly = true;
+  form.elements.code.required = true;
+  byId('code-fields').classList.remove('hidden');
+  byId('login-secondary-actions').classList.remove('hidden');
+  byId('login-submit').textContent = 'Entrar com o código';
+  form.elements.code.focus();
 }
 
 function showApp() {
@@ -250,14 +281,38 @@ async function navigate(view, showLoader = true) {
 byId('login-form').addEventListener('submit', async (event) => {
   event.preventDefault();
   byId('login-error').textContent = '';
-  const form = new FormData(event.currentTarget);
+  const formElement = event.currentTarget;
+  const form = new FormData(formElement);
   try {
-    const result = await api('/api/login', { method: 'POST', body: JSON.stringify(Object.fromEntries(form)) });
+    if (formElement.dataset.step === 'request') {
+      const email = String(form.get('email') || '').trim().toLowerCase();
+      const result = await api('/api/login/request', { method: 'POST', body: JSON.stringify({ email }) });
+      showCodeStep(email);
+      toast(result.message || 'Código enviado. Confira seu e-mail.');
+      return;
+    }
+    const result = await api('/api/login/verify', {
+      method: 'POST', body: JSON.stringify({ email: state.loginEmail, code: String(form.get('code') || '').trim() }),
+    });
     state.user = result.user;
     state.csrfToken = result.csrfToken;
-    event.currentTarget.reset();
+    formElement.reset();
+    resetLoginForm();
     showApp();
     await navigate('overview');
+  } catch (error) {
+    byId('login-error').textContent = error.message;
+  }
+});
+
+byId('change-email').addEventListener('click', () => resetLoginForm());
+byId('resend-code').addEventListener('click', async () => {
+  byId('login-error').textContent = '';
+  try {
+    const result = await api('/api/login/request', { method: 'POST', body: JSON.stringify({ email: state.loginEmail }) });
+    byId('login-form').elements.code.value = '';
+    byId('login-form').elements.code.focus();
+    toast(result.message || 'Novo código solicitado.');
   } catch (error) {
     byId('login-error').textContent = error.message;
   }
@@ -332,19 +387,6 @@ byId('run-analysis').addEventListener('click', async () => {
     await api('/api/analysis', { method: 'POST', body: '{}' });
     toast('Análise iniciada. Atualize esta página em alguns instantes.');
     await loadQuality();
-  } catch (error) { toast(error.message, true); }
-});
-
-byId('user-form').addEventListener('submit', async (event) => {
-  event.preventDefault();
-  const form = new FormData(event.currentTarget);
-  try {
-    const result = await api('/api/users', { method: 'POST', body: JSON.stringify(Object.fromEntries(form)) });
-    byId('totp-result').classList.remove('hidden');
-    byId('totp-result').innerHTML = `<strong>MFA gerado — exiba somente uma vez.</strong><p>Adicione no autenticador usando o segredo:</p><code>${escapeHtml(result.totpSecret)}</code><p>Ou use a URI:</p><code>${escapeHtml(result.totpUri)}</code>`;
-    event.currentTarget.reset();
-    toast('Usuário criado. Entregue o MFA por um canal seguro.');
-    await loadUsers();
   } catch (error) { toast(error.message, true); }
 });
 

@@ -6,12 +6,13 @@ import {
   audit,
   closeDatabase,
   createAnalysisRun,
-  createOrUpdateUser,
+  createEmailLoginCode,
   createSession,
   conversationDetail,
   deleteSession,
   enforceMonitoringRetention,
   findUserByEmail,
+  invalidateEmailLoginCode,
   listAnalysis,
   listConversations,
   listUsers,
@@ -23,21 +24,13 @@ import {
   securitySummary,
   sessionUser,
   setUserActive,
+  verifyEmailLoginCode,
 } from './database.mjs';
 import { monitoringConfig, assertSecureMonitoringConfig, isAllowedAdminEmail } from './config.mjs';
-import {
-  decryptSecret,
-  encryptSecret,
-  newOpaqueToken,
-  randomTotpSecret,
-  sha256,
-  hashPassword,
-  totpUri,
-  verifyPassword,
-  verifyTotp,
-} from './security.mjs';
+import { newOpaqueToken, randomLoginCode, sha256 } from './security.mjs';
 import { collectHealth, securityEvents } from './health.mjs';
 import { executeAnalysisRun } from './analysis.mjs';
+import { sendLoginCodeEmail } from './mail.mjs';
 
 const currentDirectory = fileURLToPath(new URL('.', import.meta.url));
 const publicDirectory = join(currentDirectory, 'public');
@@ -45,7 +38,6 @@ const sessionCookie = 'zasso_monitor_session';
 const csrfCookie = 'zasso_monitor_csrf';
 const maxBodyBytes = 32 * 1024;
 const loginAttempts = new Map();
-const dummyPasswordHash = hashPassword('invalid-login-password-do-not-use');
 
 const mimeTypes = {
   '.css': 'text/css; charset=utf-8',
@@ -157,10 +149,10 @@ function requireCsrf(request, user) {
   }
 }
 
-function loginRateAllowed(key) {
+function loginRateAllowed(key, maximum = 12) {
   const now = Date.now();
   const recent = (loginAttempts.get(key) || []).filter((time) => now - time < 15 * 60 * 1000);
-  if (recent.length >= 12) return false;
+  if (recent.length >= maximum) return false;
   recent.push(now);
   loginAttempts.set(key, recent);
   return true;
@@ -176,25 +168,43 @@ function pagination(searchParams) {
   };
 }
 
-async function handleLogin(request, response) {
+async function handleLoginCodeRequest(request, response) {
   const ip = clientIp(request);
-  if (!sameOrigin(request) || !loginRateAllowed(sha256(ip))) return json(response, 429, { error: 'Muitas tentativas. Aguarde alguns minutos.' });
+  if (!sameOrigin(request)) return json(response, 403, { error: 'Origem inválida.' });
+  if (!loginRateAllowed(`request:${sha256(ip)}`, 5)) return json(response, 429, { error: 'Muitas solicitações. Aguarde alguns minutos.' });
   const body = await readBody(request);
   const email = clean(body.email, 254).toLowerCase();
-  const password = String(body.password || '').slice(0, 300);
-  const totp = clean(body.totp, 12);
-  const user = await findUserByEmail(email);
-  const validDomain = isAllowedAdminEmail(email);
-  const validPassword = await verifyPassword(password, user?.password_hash || await dummyPasswordHash);
+  const user = isAllowedAdminEmail(email) ? await findUserByEmail(email) : null;
   const locked = user?.locked_until && new Date(user.locked_until).getTime() > Date.now();
-  let validTotp = false;
-  if (user?.totp_secret_encrypted) {
-    try { validTotp = verifyTotp(decryptSecret(user.totp_secret_encrypted), totp); } catch { validTotp = false; }
+  if (user?.active && !locked) {
+    const code = randomLoginCode();
+    const created = await createEmailLoginCode({ userId: user.id, code, ip });
+    if (created.rateLimited) return json(response, 429, { error: 'Aguarde alguns minutos antes de solicitar outro código.' });
+    try {
+      await sendLoginCodeEmail({ email, code });
+      await audit({ actorId: user.id, action: 'email_code_requested', resourceType: 'session', details: { delivery: 'queued' }, ip });
+    } catch (error) {
+      await invalidateEmailLoginCode(created.id);
+      await audit({ actorId: user.id, action: 'email_code_delivery_failed', resourceType: 'session', details: { errorType: error?.name || 'Error' }, ip });
+      return json(response, 503, { error: 'Não foi possível enviar o código agora. Tente novamente em instantes.' });
+    }
   }
-  if (!user || !user.active || !validDomain || locked || !validPassword || !validTotp) {
-    if (user) await recordLoginFailure(user.id);
-    await audit({ actorId: user?.id, action: 'login_failed', resourceType: 'session', details: { reason: locked ? 'locked' : 'invalid_credentials' }, ip });
-    return json(response, 401, { error: locked ? 'Acesso temporariamente bloqueado.' : 'Credenciais ou código inválidos.' });
+  return json(response, 202, { ok: true, message: 'Se o e-mail estiver autorizado, o código chegará em instantes.' });
+}
+
+async function handleLoginCodeVerify(request, response) {
+  const ip = clientIp(request);
+  if (!sameOrigin(request)) return json(response, 403, { error: 'Origem inválida.' });
+  if (!loginRateAllowed(`verify:${sha256(ip)}`, 12)) return json(response, 429, { error: 'Muitas tentativas. Aguarde alguns minutos.' });
+  const body = await readBody(request);
+  const email = clean(body.email, 254).toLowerCase();
+  const code = clean(body.code, 12);
+  const knownUser = isAllowedAdminEmail(email) ? await findUserByEmail(email) : null;
+  const user = /^\d{6}$/.test(code) && knownUser ? await verifyEmailLoginCode({ email, code }) : null;
+  if (!user || !isAllowedAdminEmail(email)) {
+    if (knownUser) await recordLoginFailure(knownUser.id);
+    await audit({ actorId: knownUser?.id, action: 'login_failed', resourceType: 'session', details: { reason: 'invalid_or_expired_email_code' }, ip });
+    return json(response, 401, { error: 'Código inválido ou expirado.' });
   }
   const token = newOpaqueToken();
   const csrfToken = newOpaqueToken(24);
@@ -209,7 +219,8 @@ async function handleLogin(request, response) {
 
 async function api(request, response, url) {
   if (!validProxy(request)) return json(response, 404, { error: 'Rota não encontrada.' });
-  if (request.method === 'POST' && url.pathname === '/api/login') return handleLogin(request, response);
+  if (request.method === 'POST' && url.pathname === '/api/login/request') return handleLoginCodeRequest(request, response);
+  if (request.method === 'POST' && url.pathname === '/api/login/verify') return handleLoginCodeVerify(request, response);
   const user = await authenticate(request);
   if (!user) return json(response, 401, { error: 'Sessão expirada.' });
   const context = { actorId: user.id, ip: clientIp(request) };
@@ -276,22 +287,6 @@ async function api(request, response, url) {
   if (request.method === 'GET' && url.pathname === '/api/users') {
     if (!roleAtLeast(user.role, 'admin')) return json(response, 403, { error: 'Permissão insuficiente.' });
     return json(response, 200, { users: await listUsers() });
-  }
-  if (request.method === 'POST' && url.pathname === '/api/users') {
-    if (!roleAtLeast(user.role, 'admin')) return json(response, 403, { error: 'Permissão insuficiente.' });
-    const body = await readBody(request);
-    const email = clean(body.email, 254).toLowerCase();
-    if (!isAllowedAdminEmail(email)) return json(response, 400, { error: 'Este e-mail não está autorizado.' });
-    if (String(body.password || '').length < 14) return json(response, 400, { error: 'A senha temporária deve ter pelo menos 14 caracteres.' });
-    if (!clean(body.displayName, 120)) return json(response, 400, { error: 'Informe o nome do usuário.' });
-    const role = ['viewer', 'reviewer', 'admin'].includes(body.role) ? body.role : 'viewer';
-    const secret = randomTotpSecret();
-    const created = await createOrUpdateUser({
-      email, displayName: clean(body.displayName, 120), password: String(body.password || ''), role,
-      totpSecretEncrypted: encryptSecret(secret),
-    });
-    await audit({ ...context, action: 'user_created', resourceType: 'admin_user', resource: created.id, details: { role } });
-    return json(response, 201, { user: created, totpSecret: secret, totpUri: totpUri(secret, email) });
   }
   const userActiveMatch = url.pathname.match(/^\/api\/users\/([a-f0-9-]{36})\/active$/);
   if (request.method === 'PATCH' && userActiveMatch) {

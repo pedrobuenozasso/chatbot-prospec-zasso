@@ -32,6 +32,12 @@ export const monitoringConfig = Object.freeze({
   allowedEmailDomain: (process.env.MONITORING_ALLOWED_EMAIL_DOMAIN || 'zasso.com').toLowerCase(),
   allowedEmails: Object.freeze(String(process.env.MONITORING_ALLOWED_EMAILS || '')
     .split(',').map((email) => email.trim().toLowerCase()).filter(Boolean)),
+  emailLoginEnabled: boolean('MONITORING_EMAIL_LOGIN_ENABLED', true),
+  emailCodeMinutes: integer('MONITORING_EMAIL_CODE_MINUTES', 10, 5, 20),
+  emailCodeMaxAttempts: integer('MONITORING_EMAIL_CODE_MAX_ATTEMPTS', 5, 3, 5),
+  emailCodeMaxRequests: integer('MONITORING_EMAIL_CODE_MAX_REQUESTS', 3, 1, 5),
+  mailServiceUrl: (process.env.MONITORING_MAIL_SERVICE_URL || 'http://sacf-mail-service:8015').replace(/\/$/, ''),
+  mailServiceToken: process.env.MONITORING_MAIL_SERVICE_TOKEN || '',
   databaseHost: process.env.DATABASE_HOST || process.env.PGHOST || 'cloudsql-proxy-pool',
   databasePort: integer('DATABASE_PORT', process.env.PGPORT || 5432, 1, 65535),
   databaseName: process.env.DATABASE_NAME || process.env.CLOUDSQL_DB_NAME || process.env.PGDATABASE || '',
@@ -57,6 +63,7 @@ export function assertSecureMonitoringConfig() {
   if (monitoringConfig.passwordPepper.length < 32) missing.push('MONITORING_PASSWORD_PEPPER');
   if (monitoringConfig.encryptionKey.length < 32) missing.push('MONITORING_ENCRYPTION_KEY');
   if (monitoringConfig.requireProxy && monitoringConfig.proxyToken.length < 32) missing.push('MONITORING_PROXY_TOKEN');
+  if (monitoringConfig.emailLoginEnabled && monitoringConfig.mailServiceToken.length < 16) missing.push('MONITORING_MAIL_SERVICE_TOKEN');
   if (!monitoringConfig.databaseName) missing.push('DATABASE_NAME');
   if (!monitoringConfig.databaseUser) missing.push('DATABASE_USER');
   if (!monitoringConfig.databasePassword) missing.push('DATABASE_PASSWORD');

@@ -7,6 +7,8 @@ test('painel não depende de scripts externos e declara noindex', async () => {
   assert.match(html, /noindex,nofollow,noarchive/);
   assert.doesNotMatch(html, /<script[^>]+src=["']https?:/i);
   assert.match(html, /app\.js/);
+  assert.doesNotMatch(html, /type="password"|Código do autenticador/);
+  assert.match(html, /Código recebido por e-mail/);
 });
 
 test('compose mantém painel separado e atrás do HTTPS do proxy', async () => {

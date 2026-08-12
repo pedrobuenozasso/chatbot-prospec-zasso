@@ -8,7 +8,7 @@ O painel não participa do caminho crítico das mensagens. Se ele estiver indisp
 
 ## O que o painel entrega
 
-- saúde do chatbot, PostgreSQL, n8n e, opcionalmente, Evolution;
+- saúde do chatbot, PostgreSQL, n8n, mail service e, opcionalmente, Evolution;
 - indicadores de volume, qualificação, respostas de baixa confiança e pendências;
 - lista pesquisável de conversas por protocolo, segmento, status e região;
 - histórico das mensagens, resumo comercial e referências de FAQ gravadas nas novas respostas;
@@ -23,9 +23,18 @@ O painel não participa do caminho crítico das mensagens. Se ele estiver indisp
 |---|---|
 | Visualizador | Métricas, saúde, conversas e auditoria |
 | Revisor | Tudo do visualizador, mais revisão de conversas, análise e decisão sobre sugestões |
-| Administrador | Tudo do revisor, mais criação, ativação e desativação de usuários |
+| Administrador | Tudo do revisor, mais consulta e desativação de acessos |
 
-Todos os usuários devem usar e-mail do domínio configurado, senha de ao menos 14 caracteres e código TOTP de um aplicativo autenticador.
+O ambiente atual aceita exclusivamente `pedro.bueno@zasso.com`. Não existe senha de login: cada nova autenticação exige um código enviado pelo SACF Mail Service para o e-mail autorizado.
+
+## Login por e-mail
+
+1. O usuário informa o e-mail na interface da Vercel.
+2. A VPS confirma a lista segura sem revelar ao navegador quais contas existem.
+3. Um código aleatório de seis dígitos é armazenado somente como hash e enfileirado pelo SACF Mail Service.
+4. O código expira em 10 minutos, funciona uma vez e aceita no máximo cinco tentativas.
+5. Novas solicitações são limitadas por usuário e IP.
+6. Depois da validação, a VPS cria uma sessão `HttpOnly`; a Vercel nunca recebe SMTP, token do mail service ou credenciais do banco.
 
 ## Fluxo de melhoria contínua
 
@@ -46,13 +55,13 @@ Não há autoaprendizado direto nem publicação automática no RAG. Isso evita 
 - snapshots de saúde: 90 dias;
 - trilha administrativa pseudonimizada: 180 dias;
 - número do WhatsApp e IP não são exibidos no painel; identificadores operacionais e IPs de auditoria são armazenados como hash;
-- segredos TOTP são criptografados com AES-256-GCM;
+- códigos de login nunca são armazenados em texto puro e são eliminados depois de 24 horas;
 - tokens de sessão são armazenados somente como hash.
 
 ## Proteções da aplicação
 
 - HTTPS pelo Traefik e cookies `Secure`, `HttpOnly` e `SameSite=Strict`;
-- MFA obrigatório;
+- código temporário de uso único enviado somente ao e-mail autorizado;
 - bloqueio temporário depois de cinco tentativas inválidas e limitação adicional por IP;
 - CSRF em todas as operações de escrita;
 - CSP restritiva, bloqueio de iframe, MIME sniffing, câmera, microfone e geolocalização;
@@ -72,12 +81,18 @@ MONITORING_REQUIRE_PROXY=false
 MONITORING_ALLOWED_EMAILS=pedro.bueno@zasso.com
 MONITORING_ALLOWED_EMAIL_DOMAIN=zasso.com
 MONITORING_SESSION_HOURS=8
+MONITORING_EMAIL_LOGIN_ENABLED=true
+MONITORING_EMAIL_CODE_MINUTES=10
+MONITORING_EMAIL_CODE_MAX_ATTEMPTS=5
+MONITORING_EMAIL_CODE_MAX_REQUESTS=3
+MONITORING_MAIL_SERVICE_URL=http://sacf-mail-service:8015
+MONITORING_MAIL_SERVICE_TOKEN=<token interno do mail service>
 MONITORING_AUDIT_RETENTION_DAYS=180
 MONITORING_HEALTH_RETENTION_DAYS=90
 MONITORING_AI_ANALYSIS_ENABLED=false
 ```
 
-Na implantação atual, a interface fica na Vercel e chama um proxy serverless de origem fixa. Toda autorização continua na VPS com e-mail exato, senha forte e TOTP. A Vercel não recebe credenciais do PostgreSQL. Opcionalmente, `MONITORING_PROXY_TOKEN` e `MONITORING_REQUIRE_PROXY=true` podem ser adotados depois como uma segunda autenticação entre serviços.
+Na implantação atual, a interface fica na Vercel e chama um proxy serverless de origem fixa. Toda autorização, geração do código e integração com o mail service continuam na VPS. A Vercel não recebe credenciais do PostgreSQL, SMTP nem o token do mail service. Opcionalmente, `MONITORING_PROXY_TOKEN` e `MONITORING_REQUIRE_PROXY=true` podem ser adotados depois como uma segunda autenticação entre serviços.
 
 Os dados do PostgreSQL são os mesmos já usados pelo chatbot. O painel nunca deve receber uma chave do navegador; todos os segredos ficam somente no servidor.
 
@@ -105,18 +120,6 @@ docker compose \
 
 O próprio container executa migrations aditivas e idempotentes antes de iniciar.
 
-## Primeiro administrador
-
-Depois que o container estiver ativo:
-
-```bash
-docker exec -it zasso-monitoring \
-  node monitoring/create-user.mjs \
-  admin@zasso.com "Administrador Zasso" admin '<senha forte com 14+ caracteres>'
-```
-
-O comando mostra o segredo e a URI TOTP uma única vez. Eles devem ser cadastrados no Google Authenticator, Microsoft Authenticator, 1Password ou equivalente e entregues por canal seguro. A senha não deve ser digitada diretamente no histórico do shell em produção; prefira executar o comando em sessão controlada e removê-lo do histórico.
-
 ## Análise assistida por IA
 
 Comece com `MONITORING_AI_ANALYSIS_ENABLED=false`. Nesse modo, a rotina determinística já agrupa perguntas associadas a respostas de baixa confiança. Para ativar a revisão semântica, configure o token do SACF AI Worker apenas na VPS e altere a variável para `true`.
@@ -136,4 +139,4 @@ A análise é iniciada manualmente por um revisor no botão `Analisar últimos 7
 
 - mensagens com mais de 15 dias não estarão disponíveis; o resumo comercial e os indicadores podem continuar existindo;
 - o painel identifica sinais, mas a decisão de segurança e conteúdo permanece humana;
-- alertas ativos por e-mail/Slack não fazem parte deste primeiro corte; a saúde já fica disponível na interface e em `/healthz`.
+- alertas operacionais ativos por e-mail/Slack não fazem parte deste primeiro corte; o e-mail já é usado apenas para autenticação e a saúde fica disponível na interface e em `/healthz`.

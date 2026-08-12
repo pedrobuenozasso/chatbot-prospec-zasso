@@ -33,6 +33,7 @@ export async function collectHealth({ persist = true } = {}) {
     databaseComponent(),
     httpHealth('chatbot', monitoringConfig.chatbotHealthUrl),
     httpHealth('n8n', monitoringConfig.n8nHealthUrl),
+    httpHealth('mail', `${monitoringConfig.mailServiceUrl}/health/ready`),
     httpHealth('evolution', monitoringConfig.evolutionHealthUrl,
       monitoringConfig.evolutionApiKey ? { apikey: monitoringConfig.evolutionApiKey } : {}),
   ]);

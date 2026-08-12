@@ -21,6 +21,7 @@ services:
       DATABASE_SCHEMA: "${CLOUDSQL_DB_SCHEMA:-public}"
       MONITORING_CHATBOT_HEALTH_URL: http://zasso-chatbot:3000/healthz
       MONITORING_N8N_HEALTH_URL: http://n8n:5678/healthz
+      MONITORING_MAIL_SERVICE_URL: http://sacf-mail-service:8015
       MONITORING_EVENTS_PATH: /chatbot-logs/events.jsonl
     expose:
       - "3100"
