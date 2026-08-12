@@ -57,3 +57,28 @@ test('proxy encaminha as rotas planas do login por e-mail', async () => {
     else process.env.MONITORING_UPSTREAM_ORIGIN = originalOrigin;
   }
 });
+
+test('proxy encaminha a consulta plana de uma conversa com seu identificador', async () => {
+  const originalFetch = global.fetch;
+  const originalOrigin = process.env.MONITORING_UPSTREAM_ORIGIN;
+  let captured;
+  process.env.MONITORING_UPSTREAM_ORIGIN = 'https://monitoring.example.test';
+  global.fetch = async (target) => {
+    captured = String(target);
+    return new Response('{"messages":[]}', { status: 200, headers: { 'content-type': 'application/json' } });
+  };
+  const response = {
+    setHeader() {}, status(code) { this.statusCode = code; return this; },
+    send() { return this; }, json() { return this; }, end() { return this; },
+  };
+  const id = 'a'.repeat(64);
+  try {
+    await handler({ method: 'GET', url: `/api/conversation?id=${id}`, headers: {}, query: {}, socket: {} }, response);
+    assert.equal(captured, `https://monitoring.example.test/api/conversation?id=${id}`);
+    assert.equal(response.statusCode, 200);
+  } finally {
+    global.fetch = originalFetch;
+    if (originalOrigin == null) delete process.env.MONITORING_UPSTREAM_ORIGIN;
+    else process.env.MONITORING_UPSTREAM_ORIGIN = originalOrigin;
+  }
+});

@@ -1,0 +1,59 @@
+.data-table tbody tr.clickable:focus {
+  outline: 2px solid var(--green-2);
+  outline-offset: -2px;
+  background: #f1f8f3;
+}
+
+.conversation-open-button {
+  color: var(--green);
+  white-space: nowrap;
+}
+
+.message-section-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 5px 0 12px;
+}
+
+.message-section-heading h3 {
+  margin: 0;
+  font-size: 16px;
+}
+
+.message-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding-bottom: 7px;
+  margin-bottom: 7px;
+  border-bottom: 1px solid rgba(16, 32, 26, .08);
+}
+
+.message-meta strong {
+  color: var(--green);
+  font-size: 11px;
+}
+
+.message-meta span {
+  color: var(--muted);
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+}
+
+.message-body {
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.message-sources {
+  margin-top: 8px;
+  padding-top: 7px;
+  border-top: 1px dashed rgba(16, 32, 26, .12);
+  color: var(--muted);
+  font-size: 10px;
+}

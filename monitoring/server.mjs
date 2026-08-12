@@ -168,6 +168,11 @@ function pagination(searchParams) {
   };
 }
 
+function validConversationId(value) {
+  const id = clean(value, 64).toLowerCase();
+  return /^[a-f0-9]{64}$/.test(id) ? id : '';
+}
+
 async function handleLoginCodeRequest(request, response) {
   const ip = clientIp(request);
   if (!sameOrigin(request)) return json(response, 403, { error: 'Origem inválida.' });
@@ -242,23 +247,30 @@ async function api(request, response, url) {
     return json(response, 200, await listConversations(pagination(url.searchParams)));
   }
   const conversationMatch = url.pathname.match(/^\/api\/conversations\/([a-f0-9]{64})$/);
-  if (request.method === 'GET' && conversationMatch) {
-    const detail = await conversationDetail(conversationMatch[1]);
+  const requestedConversationId = url.pathname === '/api/conversation'
+    ? validConversationId(url.searchParams.get('id')) : conversationMatch?.[1];
+  if (request.method === 'GET' && requestedConversationId) {
+    const detail = await conversationDetail(requestedConversationId);
     if (!detail) return json(response, 404, { error: 'Conversa não encontrada.' });
-    await audit({ ...context, action: 'conversation_viewed', resourceType: 'conversation', resource: conversationMatch[1] });
+    await audit({ ...context, action: 'conversation_viewed', resourceType: 'conversation', resource: requestedConversationId });
     return json(response, 200, detail);
   }
+  if (request.method === 'GET' && url.pathname === '/api/conversation') {
+    return json(response, 400, { error: 'Identificador da conversa inválido.' });
+  }
   const reviewMatch = url.pathname.match(/^\/api\/conversations\/([a-f0-9]{64})\/reviews$/);
-  if (request.method === 'POST' && reviewMatch) {
+  if (request.method === 'POST' && (reviewMatch || url.pathname === '/api/conversation-review')) {
     if (!roleAtLeast(user.role, 'reviewer')) return json(response, 403, { error: 'Permissão insuficiente.' });
     const body = await readBody(request);
+    const reviewedConversationId = reviewMatch?.[1] || validConversationId(body.conversationId);
+    if (!reviewedConversationId) return json(response, 400, { error: 'Identificador da conversa inválido.' });
     const review = await saveReview({
-      conversationId: reviewMatch[1], reviewerId: user.id,
+      conversationId: reviewedConversationId, reviewerId: user.id,
       rating: Math.max(1, Math.min(5, Number(body.rating) || 0)) || null,
       labels: Array.isArray(body.labels) ? body.labels.map((item) => clean(item, 40)) : [],
       notes: clean(body.notes, 2000), status: clean(body.status, 24),
     });
-    await audit({ ...context, action: 'conversation_reviewed', resourceType: 'conversation', resource: reviewMatch[1], details: { labels: review.labels, status: review.status } });
+    await audit({ ...context, action: 'conversation_reviewed', resourceType: 'conversation', resource: reviewedConversationId, details: { labels: review.labels, status: review.status } });
     return json(response, 201, review);
   }
   if (request.method === 'GET' && url.pathname === '/api/security') {

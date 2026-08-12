@@ -142,7 +142,7 @@ function rankRows(rows = [], empty = 'Sem dados no período') {
 
 function conversationTable(items = []) {
   if (!items.length) return '<div class="empty-state">Nenhuma conversa encontrada.</div>';
-  return `<table class="data-table"><thead><tr><th>Protocolo</th><th>Lead</th><th>Segmento</th><th>Região</th><th>Idioma</th><th>Status</th><th>Mensagens</th><th>Atualizada</th></tr></thead><tbody>${items.map((item) => `<tr class="clickable" data-conversation-id="${escapeHtml(item.id)}"><td class="protocol">${escapeHtml(item.protocol || item.id.slice(0, 10).toUpperCase())}</td><td>${escapeHtml(item.contact_name || 'Não informado')}</td><td>${escapeHtml(friendly(item.segment))}</td><td>${escapeHtml(item.region || '—')}</td><td>${escapeHtml(item.language)}</td><td>${badge(item.status)}</td><td>${Number(item.message_count) || 0}</td><td>${escapeHtml(formatDate(item.updated_at))}</td></tr>`).join('')}</tbody></table>`;
+  return `<table class="data-table"><thead><tr><th>Protocolo</th><th>Lead</th><th>Segmento</th><th>Região</th><th>Idioma</th><th>Status</th><th>Mensagens</th><th>Atualizada</th><th></th></tr></thead><tbody>${items.map((item) => `<tr class="clickable" data-conversation-id="${escapeHtml(item.id)}" tabindex="0" role="button" aria-label="Abrir conversa ${escapeHtml(item.protocol || item.id.slice(0, 10).toUpperCase())}"><td class="protocol">${escapeHtml(item.protocol || item.id.slice(0, 10).toUpperCase())}</td><td>${escapeHtml(item.contact_name || 'Não informado')}</td><td>${escapeHtml(friendly(item.segment))}</td><td>${escapeHtml(item.region || '—')}</td><td>${escapeHtml(item.language)}</td><td>${badge(item.status)}</td><td>${Number(item.message_count) || 0}</td><td>${escapeHtml(formatDate(item.updated_at))}</td><td><button class="small-button conversation-open-button" type="button" data-conversation-id="${escapeHtml(item.id)}">Ver conversa</button></td></tr>`).join('')}</tbody></table>`;
 }
 
 async function loadOverview() {
@@ -189,7 +189,7 @@ function summaryItem(label, value) {
 async function openConversation(id) {
   loading(true);
   try {
-    const item = await api(`/api/conversations/${encodeURIComponent(id)}`);
+    const item = await api(`/api/conversation?id=${encodeURIComponent(id)}`);
     byId('drawer-title').textContent = item.protocol || `Conversa ${id.slice(0, 10)}`;
     const summary = [
       summaryItem('Lead', item.contact_name), summaryItem('Segmento', friendly(item.segment)),
@@ -199,13 +199,17 @@ async function openConversation(id) {
       summaryItem('Última atividade', formatDate(item.updated_at)),
     ].join('');
     const messages = (item.messages || []).map((message) => {
+      const inbound = message.direction === 'inbound';
+      const author = inbound ? (item.contact_name || 'Lead') : 'Bot Zasso';
+      const directionLabel = inbound ? 'Mensagem recebida' : 'Resposta enviada';
       const sources = Array.isArray(message.metadata?.sources) && message.metadata.sources.length
         ? `<div class="message-sources">Fontes: ${message.metadata.sources.map(escapeHtml).join(', ')}</div>` : '';
-      return `<article class="message ${message.direction === 'inbound' ? 'inbound' : 'outbound'}">${escapeHtml(message.content)}${sources}<time>${escapeHtml(formatDate(message.created_at))}</time></article>`;
-    }).join('') || '<div class="empty-state">As mensagens já expiraram pela política de retenção.</div>';
+      return `<article class="message ${inbound ? 'inbound' : 'outbound'}"><header class="message-meta"><strong>${escapeHtml(author)}</strong><span>${escapeHtml(directionLabel)}</span></header><div class="message-body">${escapeHtml(message.content)}</div>${sources}<time>${escapeHtml(formatDate(message.created_at))}</time></article>`;
+    }).join('') || '<div class="empty-state">As mensagens já expiraram pela política de retenção de 15 dias.</div>';
+    const messageHeading = `<div class="message-section-heading"><div><p class="panel-kicker">HISTÓRICO COMPLETO</p><h3>Mensagens trocadas</h3></div><span class="period-pill">${Number(item.messages?.length) || 0} mensagem${item.messages?.length === 1 ? '' : 's'}</span></div>`;
     const lastReview = item.reviews?.[0];
     const review = roleLevel[state.user.role] >= roleLevel.reviewer ? reviewForm(item.id, lastReview) : '<div class="empty-state">Seu perfil possui acesso somente para consulta.</div>';
-    byId('drawer-content').innerHTML = `<div class="conversation-summary">${summary}</div><div class="message-stream">${messages}</div>${review}`;
+    byId('drawer-content').innerHTML = `<div class="conversation-summary">${summary}</div>${messageHeading}<div class="message-stream">${messages}</div>${review}`;
     const drawer = byId('conversation-drawer');
     drawer.classList.add('open');
     drawer.setAttribute('aria-hidden', 'false');
@@ -354,14 +358,23 @@ document.addEventListener('click', async (event) => {
   }
 });
 
+document.addEventListener('keydown', (event) => {
+  const conversation = event.target.closest('tr[data-conversation-id]');
+  if (conversation && (event.key === 'Enter' || event.key === ' ')) {
+    event.preventDefault();
+    openConversation(conversation.dataset.conversationId);
+  }
+});
+
 byId('conversation-drawer').addEventListener('submit', async (event) => {
   const form = event.target.closest('[data-review-conversation]');
   if (!form) return;
   event.preventDefault();
   const data = new FormData(form);
   try {
-    await api(`/api/conversations/${form.dataset.reviewConversation}/reviews`, {
+    await api('/api/conversation-review', {
       method: 'POST', body: JSON.stringify({
+        conversationId: form.dataset.reviewConversation,
         rating: data.get('rating') || null, status: data.get('status'), notes: data.get('notes'), labels: data.getAll('labels'),
       }),
     });

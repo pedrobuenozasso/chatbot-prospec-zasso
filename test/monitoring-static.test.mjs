@@ -11,6 +11,15 @@ test('painel não depende de scripts externos e declara noindex', async () => {
   assert.match(html, /Código recebido por e-mail/);
 });
 
+test('painel abre o histórico pela rota compatível com a Vercel e identifica lead e bot', async () => {
+  const script = await readFile(new URL('../monitoring/public/app.js', import.meta.url), 'utf8');
+  assert.match(script, /\/api\/conversation\?id=/);
+  assert.match(script, /Mensagem recebida/);
+  assert.match(script, /Resposta enviada/);
+  assert.match(script, /Bot Zasso/);
+  assert.doesNotMatch(script, /api\(`\/api\/conversations\/\$\{encodeURIComponent\(id\)\}`\)/);
+});
+
 test('compose mantém painel separado e atrás do HTTPS do proxy', async () => {
   const compose = await readFile(new URL('../docker-compose.monitoring.yml', import.meta.url), 'utf8');
   assert.match(compose, /zasso-monitoring:/);
