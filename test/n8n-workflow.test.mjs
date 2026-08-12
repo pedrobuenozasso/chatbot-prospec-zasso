@@ -70,15 +70,15 @@ test('converte somente o link comercial aprovado em botão CTA oficial', () => {
   assert.doesNotMatch(preparer.parameters.jsCode, /new URL\(/);
 });
 
-test('aguarda cinco segundos antes de cada mensagem e do CTA', () => {
+test('aguarda quatro segundos antes de cada mensagem e do CTA', () => {
   const results = prepareMessages([
     'Mensagem normal',
     'https://wa.me/5511967702212?text=Resumo',
   ]);
-  assert.deepEqual(results.map((item) => item.json.delay), [5000, 5000]);
+  assert.deepEqual(results.map((item) => item.json.delay), [4000, 4000]);
 
   const pause = workflow.nodes.find((node) => node.name === 'Pausa Natural');
-  assert.equal(pause.parameters.amount, 5);
+  assert.equal(pause.parameters.amount, 4);
   assert.equal(
     workflow.connections['É CTA Comercial?'].main[0][0].node,
     'Pausa Natural',

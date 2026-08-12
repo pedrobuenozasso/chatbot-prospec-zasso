@@ -16,7 +16,7 @@ segurança, transforma a resposta em continuidade comercial. Em perguntas sobre
 preço, por exemplo, explica que o investimento depende da aplicação e inicia a
 qualificação, em vez de apenas recusar a resposta.
 
-Cada mensagem é enviada após cinco segundos de digitação/espera, para que a
+Cada mensagem é enviada após quatro segundos de digitação/espera, para que a
 conversa mantenha um ritmo natural em vez de disparar perguntas em sequência.
 
 Em cada etapa, uma camada de interpretação valida se a mensagem responde ao

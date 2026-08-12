@@ -76,7 +76,7 @@ return result.messages
         text: ctaCopy[languageKey].body,
         ctaLabel: ctaCopy[languageKey].label,
         ctaUrl,
-        delay: 5000,
+        delay: 4000,
         order: index
       } };
     }
@@ -85,7 +85,7 @@ return result.messages
       number: inbound.number,
       messageType: 'text',
       text: text.slice(0, 4000),
-      delay: 5000,
+      delay: 4000,
       order: index
     } };
   });`;
@@ -175,7 +175,7 @@ export function applyCommercialCta(workflow, {
   });
 
   evolution.position = [loopX + 480, loopY + 160];
-  pause.parameters.amount = 5;
+  pause.parameters.amount = 4;
   pause.position = [loopX + 480, loopY];
   updated.connections['Uma Mensagem por Vez'].main[1] = [{
     node: 'É CTA Comercial?',
