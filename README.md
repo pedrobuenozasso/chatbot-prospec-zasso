@@ -86,6 +86,9 @@ passo a passo completo em
 O n8n recebe `MESSAGES_UPSERT`, filtra eventos, chama `POST /v1/messages` e
 envia as respostas pela Evolution. Nenhuma chave é armazenada no workflow.
 
+O plano do piloto para qualificar leads na sexta e no sábado e encaminhá-los no
+domingo está em [WEEKEND_HANDOFF_PILOT.md](docs/WEEKEND_HANDOFF_PILOT.md).
+
 ## Qualificação comercial
 
 Após o primeiro atendimento, o MVP coleta o perfil do lead de forma
