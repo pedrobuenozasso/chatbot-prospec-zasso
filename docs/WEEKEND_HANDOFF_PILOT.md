@@ -39,11 +39,10 @@ validado em português brasileiro antes de liberar os demais idiomas.
 - Idioma: Português (Brasil)
 - Corpo:
 
-  > Olá, {{1}}! Seu atendimento com a Zasso está pronto. Toque em
+  > Seu atendimento com a Zasso está pronto. Toque em
   > “Continuar atendimento” para receber o resumo e seguir com nosso time
   > comercial.
 
-- Exemplo da variável `{{1}}`: `Pedro`
 - Botão de resposta rápida: `Continuar atendimento`
 
 O botão é uma resposta rápida, não um link. O toque do usuário abre uma nova
@@ -177,4 +176,3 @@ O piloto deve ser pausado imediatamente se ocorrer qualquer um destes casos:
 - taxa de falha acima de 10%;
 - indisponibilidade contínua do bot por mais de cinco minutos;
 - resumo trocado entre leads ou qualquer indício de exposição de dados.
-
