@@ -11,6 +11,7 @@ import { commercialHandoff, queueQualifiedLead } from './handoff.mjs';
 import { normalizeLanguage, t } from './i18n.mjs';
 import { identifierFingerprint, recordEvent } from './observability.mjs';
 import { answer, assessQualificationReply, isPromptInjection, partitionQualificationMessage } from './rag.mjs';
+import { captureWeekendCampaignEntry } from './weekend-pilot.mjs';
 
 const RESET_COMMANDS = new Set(['/start', '/reset', '/restart', '/reiniciar', '/neustart', '/recommencer']);
 
@@ -102,10 +103,16 @@ export async function processInboundMessage({
   firstName = '',
   language = 'pt-BR',
   eventType = 'message',
+  channel = 'whatsapp',
 }) {
   const languageHint = normalizeLanguage(language);
   const cleanedText = String(text).trim();
   let state = getConversation(conversationId, { firstName, language: languageHint });
+
+  // Marca somente a primeira mensagem de uma conversa nova. O marcador não é
+  // suficiente para disparar nada sozinho: a fila e o template continuam
+  // protegidos pela feature flag e pelas validações do piloto.
+  captureWeekendCampaignEntry(state, { text: cleanedText, channel });
 
   if (isDuplicate(state, messageId)) {
     recordEvent('duplicate_message_ignored', {

@@ -29,6 +29,7 @@ export function newConversation(contact = {}) {
     greeted: false,
     language: normalizeLanguage(contact.language),
     handoffStatus: 'not_ready',
+    entrySource: { type: 'unknown' },
     initialInterest: '',
     contact: { firstName: contact.firstName || '' },
     qualification: { segment: null, region: null, crop: null, area: null, areaHectares: null, urbanProfile: null },
@@ -50,6 +51,12 @@ export function conversationExpired(state, now = Date.now()) {
 function sanitizedState(state) {
   state.language = normalizeLanguage(state.language);
   state.contact = { firstName: state.contact?.firstName || '' };
+  state.entrySource = ['unknown', 'ctwa_marker', 'ctwa_referral'].includes(state.entrySource?.type)
+    ? {
+        type: state.entrySource.type,
+        detectedAt: state.entrySource.detectedAt || undefined,
+      }
+    : { type: 'unknown' };
   state.initialInterest = String(state.initialInterest || '')
     .replace(/[\p{Cc}\p{Cf}\p{Zl}\p{Zp}]+/gu, ' ')
     .replace(/\s+/g, ' ')

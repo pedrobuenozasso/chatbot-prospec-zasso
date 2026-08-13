@@ -62,6 +62,12 @@ export const config = {
   conversationStatePath: resolve(process.env.CONVERSATION_STATE_PATH || resolve(projectRoot, '.state/conversations.json')),
   handoffOutboxPath: resolve(process.env.HANDOFF_OUTBOX_PATH || resolve(projectRoot, '.outbox/qualified-leads.jsonl')),
   commercialWhatsAppNumber: (process.env.COMMERCIAL_WHATSAPP_NUMBER || '5511967702212').replace(/\D/g, ''),
+  // Piloto de fim de semana. Permanece desligado até fila, template e rollback
+  // terem sido validados com números internos.
+  weekendHandoffEnabled: booleanEnvironment('WEEKEND_HANDOFF_ENABLED'),
+  weekendHandoffCampaignMessage: process.env.WEEKEND_HANDOFF_CAMPAIGN_MESSAGE
+    || 'Olá! Posso ter mais informações sobre isso?',
+  weekendHandoffTimezone: process.env.WEEKEND_HANDOFF_TIMEZONE || 'America/Sao_Paulo',
   chatbotApiHost: process.env.CHATBOT_API_HOST || '127.0.0.1',
   chatbotApiPort: Number(process.env.CHATBOT_API_PORT || '3000'),
   chatbotApiToken: process.env.CHATBOT_API_TOKEN || '',

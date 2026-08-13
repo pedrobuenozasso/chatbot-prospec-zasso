@@ -73,14 +73,15 @@ na instância oficial e nenhuma delas preservava `ctwa`, `referral` ou
 `externalAd`.
 
 Por isso, o piloto não deve presumir que todo contato do número veio de anúncio.
-Para este fim de semana, a mensagem inicial configurada no anúncio deve conter
-uma identificação estável e natural:
+Para este fim de semana, a mensagem inicial já configurada no anúncio será a
+identificação estável e natural:
 
-> Olá! Vi o anúncio da Zasso e gostaria de saber mais.
+> Olá! Posso ter mais informações sobre isso?
 
-O sistema registra essa identificação somente na primeira mensagem. Mensagens
-orgânicas, sem o marcador, continuam sendo atendidas pelo bot, mas não recebem
-o template automático de domingo.
+O sistema registra essa identificação somente na primeira mensagem e aceita
+apenas diferenças de acentuação, maiúsculas, espaços ou pontuação. Mensagens
+orgânicas sem o marcador continuam sendo atendidas pelo bot, mas não recebem o
+template automático de domingo.
 
 A solução definitiva será receber o webhook da Meta em um gateway próprio,
 registrar somente os identificadores mínimos de atribuição e repassar o evento
