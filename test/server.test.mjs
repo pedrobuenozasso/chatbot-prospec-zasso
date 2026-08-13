@@ -26,3 +26,21 @@ test('continua recusando canais não autorizados', () => {
     /unsupported_channel/,
   );
 });
+
+test('aceita somente telefone internacional válido para agendamento', () => {
+  const payload = validateApiPayload({
+    conversationId: 'whatsapp:test:recipient',
+    messageId: 'message-recipient',
+    text: 'Olá',
+    channel: 'whatsapp',
+    recipientNumber: '+55 (11) 99999-9999',
+  });
+  assert.equal(payload.recipientNumber, '5511999999999');
+  assert.throws(() => validateApiPayload({
+    conversationId: 'whatsapp:test:recipient',
+    messageId: 'message-recipient-2',
+    text: 'Olá',
+    channel: 'whatsapp',
+    recipientNumber: '123',
+  }), /invalid_recipient_number/);
+});

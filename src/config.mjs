@@ -68,6 +68,11 @@ export const config = {
   weekendHandoffCampaignMessage: process.env.WEEKEND_HANDOFF_CAMPAIGN_MESSAGE
     || 'Olá! Posso ter mais informações sobre isso?',
   weekendHandoffTimezone: process.env.WEEKEND_HANDOFF_TIMEZONE || 'America/Sao_Paulo',
+  weekendHandoffReleaseAt: process.env.WEEKEND_HANDOFF_RELEASE_AT || '',
+  weekendHandoffEncryptionKey: process.env.WEEKEND_HANDOFF_ENCRYPTION_KEY || '',
+  weekendHandoffTemplateName: process.env.WEEKEND_HANDOFF_TEMPLATE_NAME
+    || 'zasso_continuar_atendimento_fds',
+  weekendHandoffClaimLimit: positiveIntegerEnvironment('WEEKEND_HANDOFF_CLAIM_LIMIT', 25, 1, 100),
   chatbotApiHost: process.env.CHATBOT_API_HOST || '127.0.0.1',
   chatbotApiPort: Number(process.env.CHATBOT_API_PORT || '3000'),
   chatbotApiToken: process.env.CHATBOT_API_TOKEN || '',

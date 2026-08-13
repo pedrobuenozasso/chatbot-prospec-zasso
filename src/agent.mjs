@@ -11,9 +11,10 @@ import { commercialHandoff, queueQualifiedLead } from './handoff.mjs';
 import { normalizeLanguage, t } from './i18n.mjs';
 import { identifierFingerprint, recordEvent } from './observability.mjs';
 import { answer, assessQualificationReply, isPromptInjection, partitionQualificationMessage } from './rag.mjs';
-import { captureWeekendCampaignEntry } from './weekend-pilot.mjs';
+import { captureWeekendCampaignEntry, weekendQueueDecision } from './weekend-pilot.mjs';
 
 const RESET_COMMANDS = new Set(['/start', '/reset', '/restart', '/reiniciar', '/neustart', '/recommencer']);
+const STOP_COMMANDS = /^(?:\/stop|parar|cancelar|n[aã]o quero mais|stop|cancel|unsubscribe)$/iu;
 
 function sourceList(sources, language) {
   if (!config.showSources || !sources.length) return '';
@@ -79,7 +80,8 @@ function response(state, messages, extra = {}) {
 }
 
 async function finishQualification(conversationId, state) {
-  if (state.handoffStatus === 'queued' && state.handoffProtocol) {
+  if (['queued', 'weekend_queued', 'weekend_template_sent', 'commercial_cta_sent'].includes(state.handoffStatus)
+    && state.handoffProtocol) {
     return {
       status: state.handoffStatus,
       protocol: state.handoffProtocol,
@@ -87,13 +89,32 @@ async function finishQualification(conversationId, state) {
     };
   }
   const result = queueQualifiedLead(state);
-  state.handoffStatus = result.status;
+  const weekend = weekendQueueDecision(state);
+  if (weekend.eligible) {
+    state.handoffStatus = 'weekend_queued';
+    state.weekendHandoff = weekend;
+    result.status = 'weekend_queued';
+  } else {
+    state.handoffStatus = result.status;
+  }
   recordEvent('lead_qualified', {
     conversationFingerprint: identifierFingerprint(conversationId),
     segment: state.qualification.segment,
     handoffStatus: result.status,
   });
   return result;
+}
+
+function completedMessages(state, acknowledgement, handoff, contentAnswer = '') {
+  const confirmation = `${acknowledgement} ${t(state.language, 'completed')}`.trim();
+  if (handoff.status === 'weekend_queued') {
+    return [contentAnswer, confirmation, t(state.language, 'weekendQueued')].filter(Boolean);
+  }
+  return [
+    contentAnswer,
+    confirmation,
+    `${t(state.language, 'commercialCta')}\n\n${handoff.commercial.url}`,
+  ].filter(Boolean);
 }
 
 export async function processInboundMessage({
@@ -140,6 +161,29 @@ export async function processInboundMessage({
     return response(state, [`${t(resetLanguage, 'welcome')}\n\n${t(resetLanguage, 'reset')}`], { reset: true });
   }
   if (state.stage === STAGES.COMPLETED) {
+    if (STOP_COMMANDS.test(command) && ['weekend_queued', 'weekend_template_sent'].includes(state.handoffStatus)) {
+      state.handoffStatus = 'weekend_cancelled';
+      saveProgress(conversationId, state, messageId);
+      recordEvent('weekend_handoff_cancelled', {
+        conversationFingerprint: identifierFingerprint(conversationId),
+      });
+      return response(state, [t(state.language, 'weekendCancelled')]);
+    }
+    if (state.handoffStatus === 'weekend_template_sent') {
+      const commercial = commercialHandoff(state);
+      state.handoffStatus = 'commercial_cta_sent';
+      saveProgress(conversationId, state, messageId);
+      recordEvent('weekend_handoff_resumed', {
+        conversationFingerprint: identifierFingerprint(conversationId),
+      });
+      return response(state, [`${t(state.language, 'commercialCta')}\n\n${commercial.url}`], {
+        weekendResumed: true,
+      });
+    }
+    if (state.handoffStatus === 'weekend_queued') {
+      saveProgress(conversationId, state, messageId);
+      return response(state, [t(state.language, 'weekendWaiting')]);
+    }
     saveProgress(conversationId, state, messageId);
     recordEvent('post_handoff_redirected', {
       conversationFingerprint: identifierFingerprint(conversationId),
@@ -181,11 +225,11 @@ export async function processInboundMessage({
       if (progress.completed) {
         const handoff = await finishQualification(conversationId, progress.state);
         saveProgress(conversationId, progress.state, messageId);
-        return response(progress.state, [
-          contentAnswer,
-          `${progress.acknowledgement} ${t(state.language, 'completed')}`.trim(),
-          `${t(state.language, 'commercialCta')}\n\n${handoff.commercial.url}`,
-        ], { qualified: true });
+        return response(
+          progress.state,
+          completedMessages(progress.state, progress.acknowledgement, handoff, contentAnswer),
+          { qualified: true },
+        );
       }
 
       saveProgress(conversationId, progress.state, messageId);
@@ -212,10 +256,11 @@ export async function processInboundMessage({
     if (progress.completed) {
       const handoff = await finishQualification(conversationId, progress.state);
       saveProgress(conversationId, progress.state, messageId);
-      return response(progress.state, [
-        `${progress.acknowledgement} ${t(state.language, 'completed')}`.trim(),
-        `${t(state.language, 'commercialCta')}\n\n${handoff.commercial.url}`,
-      ], { qualified: true });
+      return response(
+        progress.state,
+        completedMessages(progress.state, progress.acknowledgement, handoff),
+        { qualified: true },
+      );
     }
     saveProgress(conversationId, progress.state, messageId);
     return response(progress.state, [humanizedProgress(progress)]);

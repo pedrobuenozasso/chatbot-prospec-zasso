@@ -1,0 +1,200 @@
+{
+  "name": "Zasso | Liberar leads do fim de semana",
+  "active": false,
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## Piloto de fim de semana\nExecuta domingo às 18h (America/Sao_Paulo).\n\nO chatbot entrega somente protocolos elegíveis, ainda dentro da janela gratuita e bloqueados por idempotência. O workflow envia o template aprovado e registra o resultado antes de buscar o próximo item.\n\nMantenha inativo até o teste interno ser aprovado.",
+        "height": 300,
+        "width": 460,
+        "color": 5
+      },
+      "id": "c40be54b-2937-4319-814a-f7bc1a831160",
+      "name": "LEIA PRIMEIRO",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [-560, -320]
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 18 * * 0"
+            }
+          ]
+        }
+      },
+      "id": "bf414a90-acfe-4f94-8136-6a9139a07b1b",
+      "name": "Domingo às 18h",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [-480, 80]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://zasso-chatbot:3000/v1/weekend-handoffs/claim",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "content-type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ JSON.stringify({ limit: 25 }) }}",
+        "options": { "timeout": 30000 }
+      },
+      "id": "f11cb951-6647-4601-bbe2-88ab188d8280",
+      "name": "Reservar fila elegível",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [-240, 80],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "HNulL8SMGX5OFlOY",
+          "name": "Zasso Chatbot API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = Array.isArray($json.items) ? $json.items : [];\nreturn items\n  .filter((item) => item && item.protocol && item.recipientNumber && item.templateName)\n  .map((item) => ({ json: item }));"
+      },
+      "id": "3ea0031f-fded-48c0-8314-497b6ab5cd42",
+      "name": "Expandir fila",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [0, 80]
+    },
+    {
+      "parameters": {
+        "batchSize": 1,
+        "options": { "reset": false }
+      },
+      "id": "4e37ea54-74e5-4214-b48c-e5107c7459c7",
+      "name": "Uma entrega por vez",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [240, 80]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://graph.facebook.com/v25.0/1199510373253284/messages",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "content-type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ JSON.stringify({ messaging_product: 'whatsapp', recipient_type: 'individual', to: $json.recipientNumber, type: 'template', template: { name: $json.templateName, language: { code: 'pt_BR' }, components: [{ type: 'button', sub_type: 'quick_reply', index: '0', parameters: [{ type: 'payload', payload: 'weekend:' + $json.protocol }] }] } }) }}",
+        "options": { "timeout": 30000 }
+      },
+      "onError": "continueRegularOutput",
+      "id": "85af08aa-4555-4926-a6be-ec359443fe41",
+      "name": "Enviar template pela Meta",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [480, 160],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "MetaZassoCTA2026",
+          "name": "Zasso Meta Cloud API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const queued = $('Uma entrega por vez').item.json;\nconst response = $json.body ?? $json;\nconst metaMessageId = String(response.messages?.[0]?.id ?? '');\nconst rawCode = response.error?.code ?? response.error?.message ?? response.message ?? 'meta_send_failed';\nreturn [{ json: {\n  protocol: queued.protocol,\n  status: metaMessageId ? 'sent' : 'failed',\n  metaMessageId,\n  errorCode: metaMessageId ? '' : String(rawCode).slice(0, 80)\n} }];"
+      },
+      "id": "a64262e5-eac4-4728-8866-cc49d854a222",
+      "name": "Classificar resultado",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [720, 160]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://zasso-chatbot:3000/v1/weekend-handoffs/result",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "content-type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ JSON.stringify({ protocol: $json.protocol, status: $json.status, metaMessageId: $json.metaMessageId, errorCode: $json.errorCode }) }}",
+        "options": { "timeout": 30000 }
+      },
+      "id": "c2bd91d9-bc10-421f-988d-289091e9bdf6",
+      "name": "Registrar resultado",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [960, 160],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "HNulL8SMGX5OFlOY",
+          "name": "Zasso Chatbot API"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "id": "4546118a-2293-4081-9aa2-053c4a145b46",
+      "name": "Concluído",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [480, -40]
+    }
+  ],
+  "connections": {
+    "Domingo às 18h": {
+      "main": [[{ "node": "Reservar fila elegível", "type": "main", "index": 0 }]]
+    },
+    "Reservar fila elegível": {
+      "main": [[{ "node": "Expandir fila", "type": "main", "index": 0 }]]
+    },
+    "Expandir fila": {
+      "main": [[{ "node": "Uma entrega por vez", "type": "main", "index": 0 }]]
+    },
+    "Uma entrega por vez": {
+      "main": [
+        [{ "node": "Concluído", "type": "main", "index": 0 }],
+        [{ "node": "Enviar template pela Meta", "type": "main", "index": 0 }]
+      ]
+    },
+    "Enviar template pela Meta": {
+      "main": [[{ "node": "Classificar resultado", "type": "main", "index": 0 }]]
+    },
+    "Classificar resultado": {
+      "main": [[{ "node": "Registrar resultado", "type": "main", "index": 0 }]]
+    },
+    "Registrar resultado": {
+      "main": [[{ "node": "Uma entrega por vez", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "America/Sao_Paulo",
+    "saveManualExecutions": true
+  },
+  "pinData": {},
+  "meta": { "templateCredsSetupCompleted": true },
+  "tags": []
+}

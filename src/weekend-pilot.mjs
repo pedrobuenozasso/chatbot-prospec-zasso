@@ -42,3 +42,32 @@ export function captureWeekendCampaignEntry(state, {
   };
   return true;
 }
+
+export function weekendQueueDecision(state, {
+  enabled = config.weekendHandoffEnabled,
+  releaseAt = config.weekendHandoffReleaseAt,
+} = {}) {
+  if (!enabled || !['ctwa_marker', 'ctwa_referral'].includes(state.entrySource?.type)) {
+    return { eligible: false, reason: 'source_not_eligible' };
+  }
+
+  const detectedAt = Date.parse(state.entrySource.detectedAt || '');
+  const scheduledFor = Date.parse(releaseAt || '');
+  if (!Number.isFinite(detectedAt) || !Number.isFinite(scheduledFor)) {
+    return { eligible: false, reason: 'invalid_schedule' };
+  }
+
+  const freeEntryExpiresAt = detectedAt + 72 * 60 * 60 * 1000;
+  if (scheduledFor <= detectedAt || scheduledFor >= freeEntryExpiresAt) {
+    return { eligible: false, reason: 'outside_free_entry_window' };
+  }
+
+  return {
+    eligible: true,
+    reason: 'eligible',
+    sourceType: state.entrySource.type,
+    firstInboundAt: new Date(detectedAt).toISOString(),
+    scheduledFor: new Date(scheduledFor).toISOString(),
+    freeEntryExpiresAt: new Date(freeEntryExpiresAt).toISOString(),
+  };
+}

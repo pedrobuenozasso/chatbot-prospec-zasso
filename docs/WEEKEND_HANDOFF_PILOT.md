@@ -177,3 +177,64 @@ O piloto deve ser pausado imediatamente se ocorrer qualquer um destes casos:
 - taxa de falha acima de 10%;
 - indisponibilidade contínua do bot por mais de cinco minutos;
 - resumo trocado entre leads ou qualquer indício de exposição de dados.
+
+## Configuração técnica
+
+O chatbot deve receber estas variáveis somente pela VPS:
+
+```dotenv
+WEEKEND_HANDOFF_ENABLED=false
+WEEKEND_HANDOFF_CAMPAIGN_MESSAGE=Olá! Posso ter mais informações sobre isso?
+WEEKEND_HANDOFF_TIMEZONE=America/Sao_Paulo
+WEEKEND_HANDOFF_RELEASE_AT=2026-08-16T18:00:00-03:00
+WEEKEND_HANDOFF_TEMPLATE_NAME=zasso_continuar_atendimento_fds
+WEEKEND_HANDOFF_CLAIM_LIMIT=25
+WEEKEND_HANDOFF_ENCRYPTION_KEY=<64 caracteres hexadecimais>
+```
+
+A chave é criada na VPS com `openssl rand -hex 32`; ela nunca entra no GitHub,
+no workflow ou no painel. Com `WEEKEND_HANDOFF_ENABLED=false`, a API de retirada
+da fila sempre devolve uma lista vazia, mesmo que o workflow esteja publicado.
+
+O workflow importável é
+[`n8n/weekend-handoff-sunday.json`](../n8n/weekend-handoff-sunday.json). Ele vem
+inativo, usa as credenciais já existentes `Zasso Chatbot API` e
+`Zasso Meta Cloud API`, processa uma entrega por vez e registra o resultado da
+Meta antes de avançar.
+
+## Endpoints operacionais
+
+Todos exigem a mesma autenticação Bearer da API interna do chatbot:
+
+- `GET /v1/weekend-handoffs/status`: contagem por estado, sem telefone;
+- `POST /v1/weekend-handoffs/claim`: reserva protocolos elegíveis de forma
+  transacional e entrega o telefone descriptografado somente ao n8n;
+- `POST /v1/weekend-handoffs/result`: registra `sent` ou `failed` e libera a
+  retomada somente depois de a Meta aceitar a mensagem.
+
+Não existe endpoint público para listar telefones, resumos ou textos da fila.
+
+## Ativação
+
+1. Manter o workflow de domingo inativo.
+2. Implantar o chatbot com `WEEKEND_HANDOFF_ENABLED=false` e confirmar `/healthz`.
+3. Confirmar que a migration `004_weekend_handoff_queue.sql` foi aplicada.
+4. Importar o workflow e validar que ele continua inativo.
+5. Fazer teste interno do fluxo e do template.
+6. Definir `WEEKEND_HANDOFF_ENABLED=true` e recriar somente o container do
+   chatbot.
+7. Publicar o workflow de domingo.
+8. Conferir `GET /v1/weekend-handoffs/status`; antes de sexta, a fila deve estar
+   vazia.
+
+## Rollback
+
+1. Despublicar o workflow de domingo.
+2. Alterar `WEEKEND_HANDOFF_ENABLED=false` na VPS.
+3. Recriar somente o container `zasso-chatbot`.
+4. Confirmar que `/v1/weekend-handoffs/claim` devolve `{"items":[]}`.
+5. Não apagar a tabela nem os protocolos; os registros ficam disponíveis para
+   auditoria e decisão humana na segunda-feira.
+
+O rollback não exige excluir migration, reiniciar o n8n, alterar a Evolution ou
+trocar credenciais da Meta.

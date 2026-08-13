@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {
   captureWeekendCampaignEntry,
   matchesWeekendCampaignMessage,
+  weekendQueueDecision,
 } from '../src/weekend-pilot.mjs';
 import { newConversation } from '../src/conversation.mjs';
 
@@ -57,4 +58,23 @@ test('não substitui uma origem já registrada', () => {
     enabled: true,
   }), false);
   assert.equal(state.entrySource.type, 'ctwa_referral');
+});
+
+test('agenda somente quando a liberação fica dentro das 72 horas conservadoras', () => {
+  const state = newConversation();
+  state.entrySource = { type: 'ctwa_marker', detectedAt: '2026-08-14T03:00:00.000Z' };
+  const eligible = weekendQueueDecision(state, {
+    enabled: true,
+    releaseAt: '2026-08-16T18:00:00-03:00',
+  });
+  assert.equal(eligible.eligible, true);
+  assert.equal(eligible.sourceType, 'ctwa_marker');
+  assert.equal(eligible.scheduledFor, '2026-08-16T21:00:00.000Z');
+
+  const late = weekendQueueDecision(state, {
+    enabled: true,
+    releaseAt: '2026-08-17T01:00:00-03:00',
+  });
+  assert.equal(late.eligible, false);
+  assert.equal(late.reason, 'outside_free_entry_window');
 });

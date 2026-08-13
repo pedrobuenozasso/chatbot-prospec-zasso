@@ -5,14 +5,18 @@ import { config } from './config.mjs';
 import { migrateConversationState } from './conversation.mjs';
 import {
   closeDatabase,
+  claimDueWeekendHandoffs,
+  completeWeekendHandoff,
   databaseStatus,
   enforceRetentionPolicy,
   initializeDatabase,
+  weekendHandoffStatus,
 } from './database.mjs';
 import { secureHandoffStorage } from './handoff.mjs';
 import { SUPPORTED_LANGUAGES } from './i18n.mjs';
 import { identifierFingerprint, recordEvent } from './observability.mjs';
 import { processInboundPersisted } from './persistence.mjs';
+import { validateWeekendEncryptionKey } from './weekend-crypto.mjs';
 
 const conversationsInFlight = new Map();
 const requestsByConversation = new Map();
@@ -90,6 +94,7 @@ export function validateApiPayload(body) {
   const firstName = cleanString(body.firstName, 80);
   const language = cleanString(body.language, 16) || 'pt-BR';
   const channel = cleanString(body.channel, 24) || 'whatsapp';
+  const recipientNumber = cleanString(body.recipientNumber, 24).replace(/\D/g, '');
 
   if (!['message', 'call'].includes(eventType)) {
     const error = new Error('unsupported_event_type');
@@ -111,7 +116,21 @@ export function validateApiPayload(body) {
     error.statusCode = 400;
     throw error;
   }
-  return { conversationId, messageId, text, firstName, language, channel, eventType };
+  if (recipientNumber && !/^\d{10,15}$/.test(recipientNumber)) {
+    const error = new Error('invalid_recipient_number');
+    error.statusCode = 400;
+    throw error;
+  }
+  return {
+    conversationId,
+    messageId,
+    text,
+    firstName,
+    language,
+    channel,
+    eventType,
+    ...(recipientNumber ? { recipientNumber } : {}),
+  };
 }
 
 async function serialized(conversationId, task) {
@@ -135,6 +154,47 @@ async function handle(request, response) {
       languages: SUPPORTED_LANGUAGES,
       persistence: databaseStatus(),
     });
+    return;
+  }
+  if (request.method === 'GET' && url.pathname === '/v1/weekend-handoffs/status') {
+    if (!authorized(request)) {
+      json(response, 401, { error: 'unauthorized' });
+      return;
+    }
+    json(response, 200, await weekendHandoffStatus());
+    return;
+  }
+  if (request.method === 'POST' && url.pathname === '/v1/weekend-handoffs/claim') {
+    if (!authorized(request)) {
+      json(response, 401, { error: 'unauthorized' });
+      return;
+    }
+    if (!request.headers['content-type']?.toLocaleLowerCase().startsWith('application/json')) {
+      json(response, 415, { error: 'content_type_must_be_json' });
+      return;
+    }
+    const body = await readJsonBody(request);
+    const items = await claimDueWeekendHandoffs(body.limit);
+    json(response, 200, { items });
+    return;
+  }
+  if (request.method === 'POST' && url.pathname === '/v1/weekend-handoffs/result') {
+    if (!authorized(request)) {
+      json(response, 401, { error: 'unauthorized' });
+      return;
+    }
+    if (!request.headers['content-type']?.toLocaleLowerCase().startsWith('application/json')) {
+      json(response, 415, { error: 'content_type_must_be_json' });
+      return;
+    }
+    const body = await readJsonBody(request);
+    const updated = await completeWeekendHandoff({
+      protocol: cleanString(body.protocol, 40),
+      status: cleanString(body.status, 16),
+      metaMessageId: cleanString(body.metaMessageId, 220),
+      errorCode: cleanString(body.errorCode, 80),
+    });
+    json(response, updated ? 200 : 409, { updated });
     return;
   }
   if (request.method !== 'POST' || url.pathname !== '/v1/messages') {
@@ -180,6 +240,18 @@ export function createChatbotServer() {
 export async function startChatbotServer() {
   if (config.chatbotApiToken.length < 32) {
     throw new Error('CHATBOT_API_TOKEN ausente ou curto. Use um segredo aleatório com pelo menos 32 caracteres.');
+  }
+  if (config.weekendHandoffEnabled) {
+    if (!config.databaseEnabled || !config.databaseRequired) {
+      throw new Error('O piloto de fim de semana exige DATABASE_ENABLED=true e DATABASE_REQUIRED=true.');
+    }
+    validateWeekendEncryptionKey();
+    if (!Number.isFinite(Date.parse(config.weekendHandoffReleaseAt))) {
+      throw new Error('WEEKEND_HANDOFF_RELEASE_AT ausente ou inválido.');
+    }
+    if (!/^[a-z0-9_]{3,120}$/.test(config.weekendHandoffTemplateName)) {
+      throw new Error('WEEKEND_HANDOFF_TEMPLATE_NAME inválido.');
+    }
   }
   migrateConversationState();
   secureHandoffStorage();

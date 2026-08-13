@@ -5,6 +5,7 @@ import pg from 'pg';
 import { config, projectRoot } from './config.mjs';
 import { conversationStorageKey } from './conversation.mjs';
 import { qualifiedLeadSummary } from './handoff.mjs';
+import { decryptWeekendRecipient, encryptWeekendRecipient } from './weekend-crypto.mjs';
 
 const { Pool } = pg;
 const migrationsDirectory = resolve(projectRoot, 'db/migrations');
@@ -294,6 +295,48 @@ async function insertMessage(client, key, messageId, direction, content, languag
   );
 }
 
+async function upsertWeekendHandoff(client, key, payload, state) {
+  if (state.handoffStatus !== 'weekend_queued' || !state.handoffProtocol) return;
+  const schedule = state.weekendHandoff || {};
+  if (!payload.recipientNumber) throw new Error('Destinatário ausente para a fila de fim de semana.');
+  if (!['ctwa_marker', 'ctwa_referral'].includes(schedule.sourceType)) {
+    throw new Error('Origem inelegível para a fila de fim de semana.');
+  }
+
+  await client.query(
+    `INSERT INTO chatbot_weekend_handoffs
+      (protocol, conversation_key, recipient_ciphertext, language, source_type,
+       first_inbound_at, free_entry_expires_at, scheduled_for, status, updated_at)
+     VALUES ($1, $2, $3, $4, $5, $6::timestamptz, $7::timestamptz, $8::timestamptz, 'queued', now())
+     ON CONFLICT (protocol) DO UPDATE SET
+       recipient_ciphertext = CASE
+         WHEN chatbot_weekend_handoffs.status = 'queued' THEN EXCLUDED.recipient_ciphertext
+         ELSE chatbot_weekend_handoffs.recipient_ciphertext
+       END,
+       language = EXCLUDED.language,
+       updated_at = now()`,
+    [
+      state.handoffProtocol,
+      key,
+      encryptWeekendRecipient(payload.recipientNumber),
+      state.language || 'pt-BR',
+      schedule.sourceType,
+      schedule.firstInboundAt,
+      schedule.freeEntryExpiresAt,
+      schedule.scheduledFor,
+    ],
+  );
+}
+
+async function cancelPendingWeekendHandoffs(client, key, reason) {
+  await client.query(
+    `UPDATE chatbot_weekend_handoffs
+     SET status = 'cancelled', last_error_code = $2, updated_at = now()
+     WHERE conversation_key = $1 AND status IN ('queued', 'sending')`,
+    [key, reason],
+  );
+}
+
 export async function persistConversationState(conversationId, state, channel = 'whatsapp') {
   if (!ready) return false;
   const client = await pool.connect();
@@ -320,6 +363,10 @@ export async function persistInteraction(payload, result, state) {
     const key = await upsertConversation(client, payload.conversationId, state, payload.channel || 'whatsapp');
     await upsertLead(client, key, state, result.qualified || state.stage === 'completed');
     await upsertHandoff(client, key, state);
+    await upsertWeekendHandoff(client, key, payload, state);
+    if (result.reset || state.handoffStatus === 'weekend_cancelled') {
+      await cancelPendingWeekendHandoffs(client, key, result.reset ? 'conversation_reset' : 'lead_opt_out');
+    }
     await insertMessage(
       client,
       key,
@@ -357,4 +404,118 @@ export async function persistInteraction(payload, result, state) {
   } finally {
     client.release();
   }
+}
+
+export async function claimDueWeekendHandoffs(limit = config.weekendHandoffClaimLimit) {
+  if (!config.weekendHandoffEnabled) return [];
+  if (!ready) throw new Error('PostgreSQL indisponível para a fila de fim de semana.');
+  const requested = Math.min(Math.max(Number(limit) || 1, 1), config.weekendHandoffClaimLimit);
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    await client.query(
+      `UPDATE chatbot_weekend_handoffs
+       SET status = 'skipped', last_error_code = 'free_entry_expired', updated_at = now()
+       WHERE status = 'queued' AND free_entry_expires_at <= now()`,
+    );
+    const selected = await client.query(
+      `SELECT protocol, recipient_ciphertext, language, source_type,
+              scheduled_for, free_entry_expires_at
+       FROM chatbot_weekend_handoffs
+       WHERE status = 'queued'
+         AND scheduled_for <= now()
+         AND free_entry_expires_at > now()
+       ORDER BY scheduled_for, created_at
+       LIMIT $1
+       FOR UPDATE SKIP LOCKED`,
+      [requested],
+    );
+    const protocols = selected.rows.map((row) => row.protocol);
+    if (protocols.length) {
+      await client.query(
+        `UPDATE chatbot_weekend_handoffs
+         SET status = 'sending', attempts = attempts + 1, claimed_at = now(), updated_at = now()
+         WHERE protocol = ANY($1::varchar[])`,
+        [protocols],
+      );
+    }
+    await client.query('COMMIT');
+    return selected.rows.map((row) => ({
+      protocol: row.protocol,
+      recipientNumber: decryptWeekendRecipient(row.recipient_ciphertext),
+      language: row.language,
+      sourceType: row.source_type,
+      scheduledFor: row.scheduled_for,
+      freeEntryExpiresAt: row.free_entry_expires_at,
+      templateName: config.weekendHandoffTemplateName,
+    }));
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+export async function completeWeekendHandoff({ protocol, status, metaMessageId = '', errorCode = '' }) {
+  if (!ready) throw new Error('PostgreSQL indisponível para a fila de fim de semana.');
+  if (!/^ZAS-[A-Z0-9-]{8,32}$/i.test(protocol)) throw new Error('Protocolo inválido.');
+  if (!['sent', 'failed'].includes(status)) throw new Error('Resultado de envio inválido.');
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const updated = await client.query(
+      `UPDATE chatbot_weekend_handoffs
+       SET status = $2,
+           meta_message_id = NULLIF($3, ''),
+           last_error_code = NULLIF($4, ''),
+           sent_at = CASE WHEN $2 = 'sent' THEN now() ELSE sent_at END,
+           updated_at = now()
+       WHERE protocol = $1 AND status = 'sending'
+       RETURNING conversation_key`,
+      [protocol, status, String(metaMessageId).slice(0, 220), String(errorCode).slice(0, 80)],
+    );
+    if (!updated.rowCount) {
+      await client.query('ROLLBACK');
+      return false;
+    }
+    const conversationKey = updated.rows[0].conversation_key;
+    if (status === 'sent') {
+      await client.query(
+        `UPDATE chatbot_conversations
+         SET state = jsonb_set(
+               jsonb_set(state, '{handoffStatus}', to_jsonb('weekend_template_sent'::text), true),
+               '{updatedAt}', to_jsonb(now()::text), true
+             ),
+             updated_at = now()
+         WHERE conversation_key = $1`,
+        [conversationKey],
+      );
+      await client.query(
+        `UPDATE chatbot_handoffs SET status = 'weekend_template_sent', updated_at = now()
+         WHERE protocol = $1`,
+        [protocol],
+      );
+    }
+    await client.query('COMMIT');
+    return true;
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+export async function weekendHandoffStatus() {
+  if (!ready) return { enabled: false, counts: {} };
+  const result = await pool.query(
+    `SELECT status, count(*)::integer AS total
+     FROM chatbot_weekend_handoffs GROUP BY status ORDER BY status`,
+  );
+  return {
+    enabled: config.weekendHandoffEnabled,
+    releaseAt: config.weekendHandoffReleaseAt || null,
+    counts: Object.fromEntries(result.rows.map((row) => [row.status, row.total])),
+  };
 }

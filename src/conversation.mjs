@@ -57,6 +57,18 @@ function sanitizedState(state) {
         detectedAt: state.entrySource.detectedAt || undefined,
       }
     : { type: 'unknown' };
+  if (state.weekendHandoff && typeof state.weekendHandoff === 'object') {
+    state.weekendHandoff = {
+      eligible: state.weekendHandoff.eligible === true,
+      reason: String(state.weekendHandoff.reason || '').slice(0, 48),
+      sourceType: ['ctwa_marker', 'ctwa_referral'].includes(state.weekendHandoff.sourceType)
+        ? state.weekendHandoff.sourceType
+        : undefined,
+      firstInboundAt: state.weekendHandoff.firstInboundAt || undefined,
+      scheduledFor: state.weekendHandoff.scheduledFor || undefined,
+      freeEntryExpiresAt: state.weekendHandoff.freeEntryExpiresAt || undefined,
+    };
+  }
   state.initialInterest = String(state.initialInterest || '')
     .replace(/[\p{Cc}\p{Cf}\p{Zl}\p{Zp}]+/gu, ' ')
     .replace(/\s+/g, ' ')
