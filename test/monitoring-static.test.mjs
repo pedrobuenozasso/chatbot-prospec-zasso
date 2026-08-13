@@ -46,7 +46,9 @@ test('fila de revisão é seletiva, exportável e acessível pelo sino', async (
   assert.match(html, /Exportar JSON/);
   assert.match(script, /data-review-flag/);
   assert.match(script, /api\/reviews\?limit=100/);
-  assert.match(server, /\/api\/reviews\/export/);
+  assert.match(server, /\/api\/review-export/);
+  assert.match(script, /api\/conversation-review/);
+  assert.match(script, /api\/review-export/);
   assert.match(server, /contact_data_redacted/);
   assert.match(database, /r\.status = 'needs_action'/);
 });

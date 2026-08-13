@@ -301,7 +301,7 @@ async function api(request, response, url) {
   if (request.method === 'GET' && url.pathname === '/api/reviews') {
     return json(response, 200, await listConversations({ ...pagination(url.searchParams), reviewStatus: 'needs_action' }));
   }
-  if (request.method === 'GET' && url.pathname === '/api/reviews/export') {
+  if (request.method === 'GET' && ['/api/reviews/export', '/api/review-export'].includes(url.pathname)) {
     if (!roleAtLeast(user.role, 'reviewer')) return json(response, 403, { error: 'Permissão insuficiente.' });
     const format = clean(url.searchParams.get('format'), 12).toLowerCase();
     if (!['json', 'html'].includes(format)) return json(response, 400, { error: 'Formato de exportação inválido.' });

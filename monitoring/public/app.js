@@ -349,7 +349,14 @@ document.addEventListener('click', async (event) => {
     reviewFlag.disabled = true;
     const flagged = reviewFlag.dataset.flagged !== 'true';
     try {
-      await api(`/api/conversations/${reviewFlag.dataset.reviewFlag}/review-flag`, { method: 'POST', body: JSON.stringify({ flagged }) });
+      await api('/api/conversation-review', {
+        method: 'POST',
+        body: JSON.stringify({
+          conversationId: reviewFlag.dataset.reviewFlag,
+          status: flagged ? 'needs_action' : 'resolved',
+          labels: flagged ? ['needs_human_review'] : [],
+        }),
+      });
       toast(flagged ? 'Conversa adicionada à fila de revisão.' : 'Conversa removida da fila de revisão.');
       if (state.view === 'quality') return loadQuality();
       if (state.view === 'conversations') return loadConversations();
@@ -429,7 +436,7 @@ byId('run-analysis').addEventListener('click', async () => {
 
 function exportReviews(format) {
   if (!['html', 'json'].includes(format)) return;
-  window.location.assign(`/api/reviews/export?format=${format}`);
+  window.location.assign(`/api/review-export?format=${format}`);
 }
 
 byId('export-reviews-html').addEventListener('click', () => exportReviews('html'));
