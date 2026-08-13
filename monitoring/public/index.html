@@ -54,7 +54,7 @@
         <nav id="main-nav" aria-label="Navegação principal">
           <button data-view="overview" class="nav-item active"><span>⌁</span> Visão geral</button>
           <button data-view="conversations" class="nav-item"><span>◫</span> Conversas</button>
-          <button data-view="quality" class="nav-item"><span>◇</span> Qualidade e FAQs</button>
+          <button data-view="quality" class="nav-item"><span>♢</span> Revisões e FAQs</button>
           <button data-view="security" class="nav-item"><span>⌾</span> Segurança</button>
           <button data-view="users" class="nav-item admin-only"><span>◎</span> Acessos</button>
         </nav>
@@ -97,8 +97,9 @@
         </section>
 
         <section id="view-quality" class="view-section hidden">
-          <div class="action-hero"><div><p class="panel-kicker">MELHORIA CONTÍNUA</p><h2>Revisão semanal assistida por IA</h2><p>A análise remove dados pessoais, identifica falhas e gera sugestões. Nenhuma FAQ é publicada sem aprovação e fonte oficial.</p></div><button id="run-analysis" class="primary-button reviewer-only">Analisar últimos 7 dias</button></div>
-          <div class="dashboard-grid"><article class="panel"><div class="panel-heading"><div><p class="panel-kicker">EXECUÇÕES</p><h2>Análises recentes</h2></div></div><div id="analysis-runs" class="stack-list"></div></article><article class="panel wide"><div class="panel-heading"><div><p class="panel-kicker">FILA DE REVISÃO</p><h2>Sugestões de FAQ</h2></div></div><div id="faq-candidates" class="candidate-list"></div></article></div>
+          <div class="action-hero"><div><p class="panel-kicker">MELHORIA CONTROLADA</p><h2>Revisão humana seletiva</h2><p>Somente as conversas marcadas com o sino entram nesta fila. A análise remove dados de contato e nenhuma FAQ altera o RAG sem validação humana e fonte oficial.</p></div><div class="review-hero-actions reviewer-only"><button id="export-reviews-html" class="secondary-button">Exportar HTML</button><button id="export-reviews-json" class="secondary-button">Exportar JSON</button><button id="run-analysis" class="primary-button">Analisar marcadas</button></div></div>
+          <article class="panel"><div class="panel-heading"><div><p class="panel-kicker">FILA SELETIVA</p><h2>Conversas que precisam de revisão</h2></div><span id="review-queue-total" class="period-pill"></span></div><p class="review-retention-note">Marque o sino na lista de conversas. Exporte ou revise dentro de 15 dias, enquanto o histórico integral ainda está disponível.</p><div id="review-queue" class="table-wrap"></div></article>
+          <div class="dashboard-grid"><article class="panel"><div class="panel-heading"><div><p class="panel-kicker">EXECUÇÕES</p><h2>Análises das marcadas</h2></div></div><div id="analysis-runs" class="stack-list"></div></article><article class="panel wide"><div class="panel-heading"><div><p class="panel-kicker">CANDIDATAS</p><h2>Sugestões de FAQ</h2></div></div><div id="faq-candidates" class="candidate-list"></div></article></div>
         </section>
 
         <section id="view-security" class="view-section hidden">

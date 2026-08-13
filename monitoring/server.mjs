@@ -20,6 +20,7 @@ import {
   recordLoginFailure,
   recordLoginSuccess,
   reviewFaqCandidate,
+  reviewQueueExport,
   saveReview,
   securitySummary,
   sessionUser,
@@ -27,7 +28,7 @@ import {
   verifyEmailLoginCode,
 } from './database.mjs';
 import { monitoringConfig, assertSecureMonitoringConfig, isAllowedAdminEmail } from './config.mjs';
-import { newOpaqueToken, randomLoginCode, sha256 } from './security.mjs';
+import { newOpaqueToken, randomLoginCode, redactSensitiveText, sha256 } from './security.mjs';
 import { collectHealth, securityEvents } from './health.mjs';
 import { executeAnalysisRun } from './analysis.mjs';
 import { sendLoginCodeEmail } from './mail.mjs';
@@ -66,6 +67,56 @@ function json(response, status, payload, extraHeaders = {}) {
   const body = JSON.stringify(payload);
   response.writeHead(status, { ...securityHeaders(), 'content-length': Buffer.byteLength(body), ...extraHeaders });
   response.end(body);
+}
+
+function download(response, contentType, filename, body) {
+  const payload = Buffer.from(body, 'utf8');
+  response.writeHead(200, {
+    ...securityHeaders(contentType),
+    'content-disposition': `attachment; filename="${filename}"`,
+    'content-length': payload.length,
+  });
+  response.end(payload);
+}
+
+function escapeHtml(value) {
+  return String(value ?? '').replace(/[&<>'"]/g, (character) => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;',
+  })[character]);
+}
+
+function safeReviewExport(rows) {
+  return rows.map((row, index) => ({
+    caseId: row.protocol || `REV-${String(index + 1).padStart(4, '0')}`,
+    language: row.language,
+    stage: row.stage,
+    status: row.status,
+    qualification: {
+      segment: row.segment || null,
+      region: row.region || null,
+      cropOrApplication: row.crop_or_application || null,
+      area: row.area_text || null,
+      areaHectares: row.area_hectares || null,
+      urbanProfile: row.urban_profile || null,
+    },
+    review: {
+      rating: row.rating || null,
+      labels: row.labels || [],
+      notes: redactSensitiveText(row.notes || ''),
+      flaggedAt: row.flagged_at,
+    },
+    messages: (row.messages || []).map((message) => ({
+      direction: message.direction,
+      language: message.language,
+      text: redactSensitiveText(message.content),
+      createdAt: message.createdAt,
+    })),
+  }));
+}
+
+function reviewExportHtml(cases, generatedAt) {
+  const articles = cases.map((item) => `<article><header><h2>${escapeHtml(item.caseId)}</h2><span>${escapeHtml(item.language || '—')} · ${escapeHtml(item.review.labels.join(', ') || 'Sem rótulo')}</span></header><dl><dt>Segmento</dt><dd>${escapeHtml(item.qualification.segment || '—')}</dd><dt>Região</dt><dd>${escapeHtml(item.qualification.region || '—')}</dd><dt>Aplicação/cultivo</dt><dd>${escapeHtml(item.qualification.cropOrApplication || item.qualification.urbanProfile || '—')}</dd><dt>Área</dt><dd>${escapeHtml(item.qualification.area || '—')}</dd></dl>${item.review.notes ? `<p class="notes"><strong>Observação:</strong> ${escapeHtml(item.review.notes)}</p>` : ''}<section>${item.messages.map((message) => `<div class="message ${message.direction === 'inbound' ? 'lead' : 'bot'}"><strong>${message.direction === 'inbound' ? 'Lead' : 'Bot Zasso'}</strong><p>${escapeHtml(message.text)}</p><small>${escapeHtml(message.createdAt || '')}</small></div>`).join('') || '<p>Mensagens não disponíveis pela política de retenção.</p>'}</section></article>`).join('');
+  return `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Revisões Zasso</title><style>body{max-width:980px;margin:40px auto;padding:0 22px;background:#f3f5f1;color:#111512;font:14px/1.5 system-ui,sans-serif}h1{margin-bottom:4px}body>p{color:#687168}article{margin:24px 0;padding:24px;background:#fff;border:1px solid #dde3da;border-radius:14px}header{display:flex;justify-content:space-between;gap:20px;border-bottom:1px solid #dde3da}header span{color:#687168}dl{display:grid;grid-template-columns:120px 1fr;margin:18px 0}dt{font-weight:700}dd{margin:0}.notes{padding:12px;background:#fff1d9}.message{max-width:78%;margin:10px 0;padding:12px 14px;border-radius:12px}.message p{white-space:pre-wrap}.message small{color:#687168}.lead{background:#f3f5f1}.bot{margin-left:auto;background:#e9f4df}</style></head><body><h1>Fila de revisão Zasso</h1><p>Exportado em ${escapeHtml(generatedAt)}. Dados de contato foram removidos automaticamente.</p>${articles || '<article>Nenhuma conversa marcada.</article>'}</body></html>`;
 }
 
 function clean(value, maximum = 200) {
@@ -165,6 +216,7 @@ function pagination(searchParams) {
     status: clean(searchParams.get('status'), 32),
     segment: clean(searchParams.get('segment'), 24),
     search: clean(searchParams.get('search'), 120),
+    reviewStatus: clean(searchParams.get('reviewStatus'), 24),
   };
 }
 
@@ -246,6 +298,20 @@ async function api(request, response, url) {
   if (request.method === 'GET' && url.pathname === '/api/conversations') {
     return json(response, 200, await listConversations(pagination(url.searchParams)));
   }
+  if (request.method === 'GET' && url.pathname === '/api/reviews') {
+    return json(response, 200, await listConversations({ ...pagination(url.searchParams), reviewStatus: 'needs_action' }));
+  }
+  if (request.method === 'GET' && url.pathname === '/api/reviews/export') {
+    if (!roleAtLeast(user.role, 'reviewer')) return json(response, 403, { error: 'Permissão insuficiente.' });
+    const format = clean(url.searchParams.get('format'), 12).toLowerCase();
+    if (!['json', 'html'].includes(format)) return json(response, 400, { error: 'Formato de exportação inválido.' });
+    const cases = safeReviewExport(await reviewQueueExport());
+    const generatedAt = new Date().toISOString();
+    await audit({ ...context, action: 'review_queue_exported', resourceType: 'review_queue', details: { format, count: cases.length } });
+    const date = generatedAt.slice(0, 10);
+    if (format === 'json') return download(response, 'application/json; charset=utf-8', `zasso-revisoes-${date}.json`, JSON.stringify({ generatedAt, privacy: 'contact_data_redacted', cases }, null, 2));
+    return download(response, 'text/html; charset=utf-8', `zasso-revisoes-${date}.html`, reviewExportHtml(cases, generatedAt));
+  }
   const conversationMatch = url.pathname.match(/^\/api\/conversations\/([a-f0-9]{64})$/);
   const requestedConversationId = url.pathname === '/api/conversation'
     ? validConversationId(url.searchParams.get('id')) : conversationMatch?.[1];
@@ -273,6 +339,18 @@ async function api(request, response, url) {
     await audit({ ...context, action: 'conversation_reviewed', resourceType: 'conversation', resource: reviewedConversationId, details: { labels: review.labels, status: review.status } });
     return json(response, 201, review);
   }
+  const reviewFlagMatch = url.pathname.match(/^\/api\/conversations\/([a-f0-9]{64})\/review-flag$/);
+  if (request.method === 'POST' && reviewFlagMatch) {
+    if (!roleAtLeast(user.role, 'reviewer')) return json(response, 403, { error: 'Permissão insuficiente.' });
+    const body = await readBody(request);
+    const flagged = body.flagged === true;
+    const review = await saveReview({
+      conversationId: reviewFlagMatch[1], reviewerId: user.id, rating: null,
+      labels: flagged ? ['needs_human_review'] : [], notes: '', status: flagged ? 'needs_action' : 'resolved',
+    });
+    await audit({ ...context, action: flagged ? 'conversation_flagged' : 'conversation_unflagged', resourceType: 'conversation', resource: reviewFlagMatch[1] });
+    return json(response, 201, { flagged, review });
+  }
   if (request.method === 'GET' && url.pathname === '/api/security') {
     const [databaseSignals, events] = await Promise.all([securitySummary(), securityEvents()]);
     return json(response, 200, { ...databaseSignals, events });
@@ -281,9 +359,9 @@ async function api(request, response, url) {
   if (request.method === 'POST' && url.pathname === '/api/analysis') {
     if (!roleAtLeast(user.role, 'reviewer')) return json(response, 403, { error: 'Permissão insuficiente.' });
     const now = new Date();
-    const periodStart = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const periodStart = new Date(now.getTime() - 15 * 24 * 60 * 60 * 1000);
     const runId = await createAnalysisRun({ requestedBy: user.id, periodStart, periodEnd: now });
-    await audit({ ...context, action: 'analysis_requested', resourceType: 'analysis_run', resource: runId, details: { periodDays: 7 } });
+    await audit({ ...context, action: 'analysis_requested', resourceType: 'analysis_run', resource: runId, details: { periodDays: 15, scope: 'flagged_only' } });
     void executeAnalysisRun({ runId, periodStart, periodEnd: now });
     return json(response, 202, { id: runId, status: 'queued' });
   }

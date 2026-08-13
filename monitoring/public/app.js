@@ -142,7 +142,12 @@ function rankRows(rows = [], empty = 'Sem dados no período') {
 
 function conversationTable(items = []) {
   if (!items.length) return '<div class="empty-state">Nenhuma conversa encontrada.</div>';
-  return `<table class="data-table"><thead><tr><th>Protocolo</th><th>Lead</th><th>Segmento</th><th>Região</th><th>Idioma</th><th>Status</th><th>Mensagens</th><th>Atualizada</th><th></th></tr></thead><tbody>${items.map((item) => `<tr class="clickable" data-conversation-id="${escapeHtml(item.id)}" tabindex="0" role="button" aria-label="Abrir conversa ${escapeHtml(item.protocol || item.id.slice(0, 10).toUpperCase())}"><td class="protocol">${escapeHtml(item.protocol || item.id.slice(0, 10).toUpperCase())}</td><td>${escapeHtml(item.contact_name || 'Não informado')}</td><td>${escapeHtml(friendly(item.segment))}</td><td>${escapeHtml(item.region || '—')}</td><td>${escapeHtml(item.language)}</td><td>${badge(item.status)}</td><td>${Number(item.message_count) || 0}</td><td>${escapeHtml(formatDate(item.updated_at))}</td><td><button class="small-button conversation-open-button" type="button" data-conversation-id="${escapeHtml(item.id)}">Ver conversa</button></td></tr>`).join('')}</tbody></table>`;
+  const canReview = state.user && roleLevel[state.user.role] >= roleLevel.reviewer;
+  return `<table class="data-table"><thead><tr><th>Revisão</th><th>Protocolo</th><th>Lead</th><th>Segmento</th><th>Região</th><th>Idioma</th><th>Status</th><th>Mensagens</th><th>Atualizada</th><th></th></tr></thead><tbody>${items.map((item) => {
+    const flagged = item.review_status === 'needs_action';
+    const reviewButton = canReview ? `<button class="review-flag-button ${flagged ? 'flagged' : ''}" type="button" data-review-flag="${escapeHtml(item.id)}" data-flagged="${flagged}" aria-pressed="${flagged}" aria-label="${flagged ? 'Remover da fila de revisão' : 'Marcar para revisão'}" title="${flagged ? 'Remover da fila de revisão' : 'Marcar para revisão'}">&#128276;</button>` : badge(item.review_status);
+    return `<tr class="clickable" data-conversation-id="${escapeHtml(item.id)}" tabindex="0" role="button" aria-label="Abrir conversa ${escapeHtml(item.protocol || item.id.slice(0, 10).toUpperCase())}"><td>${reviewButton}</td><td class="protocol">${escapeHtml(item.protocol || item.id.slice(0, 10).toUpperCase())}</td><td>${escapeHtml(item.contact_name || 'Não informado')}</td><td>${escapeHtml(friendly(item.segment))}</td><td>${escapeHtml(item.region || '—')}</td><td>${escapeHtml(item.language)}</td><td>${badge(item.status)}</td><td>${Number(item.message_count) || 0}</td><td>${escapeHtml(formatDate(item.updated_at))}</td><td><button class="small-button conversation-open-button" type="button" data-conversation-id="${escapeHtml(item.id)}">Ver conversa</button></td></tr>`;
+  }).join('')}</tbody></table>`;
 }
 
 async function loadOverview() {
@@ -233,7 +238,9 @@ function closeDrawer() {
 }
 
 async function loadQuality() {
-  const data = await api('/api/analysis');
+  const [data, queue] = await Promise.all([api('/api/analysis'), api('/api/reviews?limit=100')]);
+  byId('review-queue-total').textContent = `${queue.total} marcada${queue.total === 1 ? '' : 's'}`;
+  byId('review-queue').innerHTML = conversationTable(queue.items);
   byId('analysis-runs').innerHTML = data.runs?.length ? data.runs.map((run) => `<article class="stack-item"><header><strong>${escapeHtml(formatDate(run.created_at))}</strong>${badge(run.status)}</header><p>${Number(run.conversation_count) || 0} conversas analisadas · ${escapeHtml(run.summary?.mode || 'aguardando')}</p><p>${escapeHtml(run.summary?.note || run.error_code || '')}</p></article>`).join('') : '<div class="empty-state">Nenhuma análise executada.</div>';
   byId('faq-candidates').innerHTML = data.candidates?.length ? data.candidates.map((candidate) => `<article class="candidate-card"><header><strong>${escapeHtml(candidate.question)}</strong>${badge(candidate.status)}</header><p><b>${Number(candidate.occurrence_count) || 1} ocorrência(s)</b> · ${escapeHtml(candidate.language)}</p><p>${escapeHtml(candidate.reason)}</p>${candidate.suggested_answer ? `<p><strong>Rascunho:</strong> ${escapeHtml(candidate.suggested_answer)}</p>` : ''}${candidate.status === 'suggested' && roleLevel[state.user.role] >= roleLevel.reviewer ? `<div class="candidate-actions"><button class="small-button accept" data-candidate-id="${candidate.id}" data-candidate-status="accepted">Aceitar para validação</button><button class="small-button reject" data-candidate-id="${candidate.id}" data-candidate-status="rejected">Rejeitar</button></div>` : ''}</article>`).join('') : '<div class="empty-state">Nenhuma sugestão pendente.</div>';
 }
@@ -259,7 +266,7 @@ async function loadUsers() {
 const viewConfig = {
   overview: ['OPERAÇÃO EM TEMPO REAL', 'Visão geral', loadOverview],
   conversations: ['HISTÓRICO E REVISÃO', 'Conversas', loadConversations],
-  quality: ['MELHORIA CONTROLADA', 'Qualidade e FAQs', loadQuality],
+  quality: ['MELHORIA CONTROLADA', 'Revisões e FAQs', loadQuality],
   security: ['CONTROLE E AUDITORIA', 'Segurança', loadSecurity],
   users: ['ACESSO RESTRITO', 'Usuários e permissões', loadUsers],
 };
@@ -335,6 +342,23 @@ byId('main-nav').addEventListener('click', (event) => {
 document.addEventListener('click', async (event) => {
   const openView = event.target.closest('[data-open-view]');
   if (openView) return navigate(openView.dataset.openView);
+  const reviewFlag = event.target.closest('[data-review-flag]');
+  if (reviewFlag) {
+    event.preventDefault();
+    event.stopPropagation();
+    reviewFlag.disabled = true;
+    const flagged = reviewFlag.dataset.flagged !== 'true';
+    try {
+      await api(`/api/conversations/${reviewFlag.dataset.reviewFlag}/review-flag`, { method: 'POST', body: JSON.stringify({ flagged }) });
+      toast(flagged ? 'Conversa adicionada à fila de revisão.' : 'Conversa removida da fila de revisão.');
+      if (state.view === 'quality') return loadQuality();
+      if (state.view === 'conversations') return loadConversations();
+      return loadOverview();
+    } catch (error) {
+      reviewFlag.disabled = false;
+      return toast(error.message, true);
+    }
+  }
   const conversation = event.target.closest('[data-conversation-id]');
   if (conversation) return openConversation(conversation.dataset.conversationId);
   if (event.target.closest('[data-close-drawer]')) return closeDrawer();
@@ -395,13 +419,21 @@ byId('conversation-search').addEventListener('input', () => {
 
 byId('refresh-button').addEventListener('click', () => navigate(state.view));
 byId('run-analysis').addEventListener('click', async () => {
-  if (!window.confirm('Analisar os últimos 7 dias? Dados pessoais serão removidos e nenhuma FAQ será publicada automaticamente.')) return;
+  if (!window.confirm('Analisar somente as conversas marcadas? Dados de contato serão removidos e nenhuma FAQ será publicada automaticamente.')) return;
   try {
     await api('/api/analysis', { method: 'POST', body: '{}' });
     toast('Análise iniciada. Atualize esta página em alguns instantes.');
     await loadQuality();
   } catch (error) { toast(error.message, true); }
 });
+
+function exportReviews(format) {
+  if (!['html', 'json'].includes(format)) return;
+  window.location.assign(`/api/reviews/export?format=${format}`);
+}
+
+byId('export-reviews-html').addEventListener('click', () => exportReviews('html'));
+byId('export-reviews-json').addEventListener('click', () => exportReviews('json'));
 
 document.addEventListener('keydown', (event) => { if (event.key === 'Escape') closeDrawer(); });
 

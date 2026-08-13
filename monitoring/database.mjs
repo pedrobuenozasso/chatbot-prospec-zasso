@@ -319,12 +319,20 @@ export async function overview() {
   };
 }
 
-export async function listConversations({ page = 1, limit = 30, status = '', segment = '', search = '' }) {
+export async function listConversations({ page = 1, limit = 30, status = '', segment = '', search = '', reviewStatus = '' }) {
   const offset = (page - 1) * limit;
   const values = [];
   const filters = [];
   if (status) { values.push(status); filters.push(`c.status = $${values.length}`); }
   if (segment) { values.push(segment); filters.push(`l.segment = $${values.length}`); }
+  if (reviewStatus) {
+    values.push(reviewStatus);
+    filters.push(`COALESCE((
+      SELECT r.status FROM ${table('chatbot_conversation_reviews')} r
+       WHERE r.conversation_key = c.conversation_key
+       ORDER BY r.updated_at DESC, r.id DESC LIMIT 1
+    ), 'pending') = $${values.length}`);
+  }
   if (search) {
     values.push(`%${search}%`);
     filters.push(`(h.protocol ILIKE $${values.length} OR l.contact_name ILIKE $${values.length} OR l.region ILIKE $${values.length})`);
@@ -337,7 +345,7 @@ export async function listConversations({ page = 1, limit = 30, status = '', seg
             l.crop_or_application, l.area_text, l.urban_profile, l.qualified_at,
             h.protocol, h.status AS handoff_status,
             COALESCE((SELECT count(*) FROM ${table('chatbot_messages')} m WHERE m.conversation_key = c.conversation_key), 0)::int AS message_count,
-            COALESCE((SELECT status FROM ${table('chatbot_conversation_reviews')} r WHERE r.conversation_key = c.conversation_key ORDER BY updated_at DESC LIMIT 1), 'pending') AS review_status,
+            COALESCE((SELECT status FROM ${table('chatbot_conversation_reviews')} r WHERE r.conversation_key = c.conversation_key ORDER BY updated_at DESC, id DESC LIMIT 1), 'pending') AS review_status,
             count(*) OVER()::int AS total
        FROM ${table('chatbot_conversations')} c
        LEFT JOIN ${table('chatbot_leads')} l ON l.conversation_key = c.conversation_key
@@ -351,6 +359,44 @@ export async function listConversations({ page = 1, limit = 30, status = '', seg
     values,
   );
   return { items: result.rows.map(({ total, ...row }) => row), total: result.rows[0]?.total || 0, page, limit };
+}
+
+export async function reviewQueueExport(limit = 250) {
+  const result = await database().query(
+    `WITH latest_reviews AS (
+       SELECT DISTINCT ON (r.conversation_key)
+              r.conversation_key, r.rating, r.labels, r.notes, r.status,
+              r.updated_at AS flagged_at, u.display_name AS reviewer_name
+         FROM ${table('chatbot_conversation_reviews')} r
+         LEFT JOIN ${table('chatbot_admin_users')} u ON u.id = r.reviewer_user_id
+        ORDER BY r.conversation_key, r.updated_at DESC, r.id DESC
+     )
+     SELECT c.conversation_key AS id, c.channel, c.stage, c.status, c.language,
+            c.created_at, c.updated_at, l.segment, l.region, l.crop_or_application,
+            l.area_text, l.area_hectares, l.urban_profile, h.protocol,
+            r.rating, r.labels, r.notes, r.flagged_at, r.reviewer_name,
+            COALESCE(jsonb_agg(jsonb_build_object(
+              'direction', m.direction, 'content', m.content,
+              'language', m.language, 'createdAt', m.created_at
+            ) ORDER BY m.created_at, m.id) FILTER (WHERE m.id IS NOT NULL), '[]'::jsonb) AS messages
+       FROM latest_reviews r
+       JOIN ${table('chatbot_conversations')} c ON c.conversation_key = r.conversation_key
+       LEFT JOIN ${table('chatbot_leads')} l ON l.conversation_key = c.conversation_key
+       LEFT JOIN LATERAL (
+         SELECT protocol FROM ${table('chatbot_handoffs')} h2
+          WHERE h2.conversation_key = c.conversation_key ORDER BY created_at DESC LIMIT 1
+       ) h ON true
+       LEFT JOIN ${table('chatbot_messages')} m ON m.conversation_key = c.conversation_key
+      WHERE r.status = 'needs_action'
+      GROUP BY c.conversation_key, c.channel, c.stage, c.status, c.language,
+               c.created_at, c.updated_at, l.segment, l.region, l.crop_or_application,
+               l.area_text, l.area_hectares, l.urban_profile, h.protocol,
+               r.rating, r.labels, r.notes, r.flagged_at, r.reviewer_name
+      ORDER BY r.flagged_at DESC
+      LIMIT $1`,
+    [Math.max(1, Math.min(500, Number(limit) || 250))],
+  );
+  return result.rows;
 }
 
 export async function conversationDetail(id) {
@@ -458,8 +504,9 @@ export async function createAnalysisRun({ requestedBy, periodStart, periodEnd })
 export async function updateAnalysisRun(id, fields) {
   await database().query(
     `UPDATE ${table('chatbot_analysis_runs')}
-        SET status = $2, conversation_count = $3, summary = $4::jsonb,
-            error_code = $5, completed_at = CASE WHEN $2 IN ('completed', 'failed') THEN now() ELSE NULL END
+        SET status = $2::varchar, conversation_count = $3, summary = $4::jsonb,
+            error_code = $5::varchar,
+            completed_at = CASE WHEN $2::varchar IN ('completed', 'failed') THEN now() ELSE NULL END
       WHERE id = $1`,
     [id, fields.status, fields.conversationCount || 0, JSON.stringify(fields.summary || {}), fields.errorCode || null],
   );
@@ -467,11 +514,17 @@ export async function updateAnalysisRun(id, fields) {
 
 export async function conversationsForAnalysis(periodStart, periodEnd, limit = 250) {
   const result = await database().query(
-    `SELECT c.conversation_key, c.language, c.stage, c.status,
+    `WITH latest_reviews AS (
+       SELECT DISTINCT ON (conversation_key) conversation_key, status
+         FROM ${table('chatbot_conversation_reviews')}
+        ORDER BY conversation_key, updated_at DESC, id DESC
+     )
+     SELECT c.conversation_key, c.language, c.stage, c.status,
             jsonb_agg(jsonb_build_object(
               'direction', m.direction, 'content', m.content, 'createdAt', m.created_at
             ) ORDER BY m.created_at) AS messages
        FROM ${table('chatbot_conversations')} c
+       JOIN latest_reviews r ON r.conversation_key = c.conversation_key AND r.status = 'needs_action'
        JOIN ${table('chatbot_messages')} m ON m.conversation_key = c.conversation_key
       WHERE m.created_at >= $1 AND m.created_at < $2
       GROUP BY c.conversation_key, c.language, c.stage, c.status

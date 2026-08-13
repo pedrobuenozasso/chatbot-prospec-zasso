@@ -13,7 +13,9 @@ O painel não participa do caminho crítico das mensagens. Se ele estiver indisp
 - lista pesquisável de conversas por protocolo, segmento, status e região;
 - histórico das mensagens, resumo comercial e referências de FAQ gravadas nas novas respostas;
 - revisão humana com nota, observação e rótulos como `muito longa`, `FAQ ausente`, `possível alucinação` e `possível vazamento`;
-- fila de sugestões de FAQ produzida por padrões determinísticos e, quando habilitada, revisão assistida por IA;
+- marcação seletiva por sino e fila dedicada de conversas que precisam de revisão;
+- exportação da fila em HTML ou JSON com dados de contato removidos;
+- sugestões de FAQ produzidas somente a partir das conversas marcadas e, quando habilitada, revisão assistida por IA;
 - trilha de auditoria de login, consulta de conversa, revisão e mudança de acesso;
 - administração de usuários e papéis.
 
@@ -38,13 +40,16 @@ O ambiente atual aceita exclusivamente `pedro.bueno@zasso.com.br` e `rodrigo.con
 
 ## Fluxo de melhoria contínua
 
-1. O painel seleciona no máximo 250 conversas do período solicitado.
-2. Telefones, e-mails, CPF e CNPJ são removidos antes de qualquer análise externa.
-3. Mensagens do lead são tratadas como conteúdo não confiável; instruções contidas nelas não podem alterar a tarefa de auditoria.
-4. A rotina identifica baixa confiança, abandono e perguntas sem cobertura.
-5. O resultado entra em `Sugestões de FAQ`.
-6. Um revisor aceita ou rejeita a sugestão.
-7. Mesmo aceita, a sugestão ainda precisa de uma fonte oficial aprovada para ser transformada em FAQ pública.
+1. Um revisor lê uma conversa e usa o sino para marcar apenas os casos que precisam de atenção.
+2. A conversa aparece na fila `Revisões e FAQs`; retirar o sino remove o caso da fila sem apagar a trilha de auditoria.
+3. A fila pode ser exportada em HTML, para leitura, ou JSON, para análise estruturada. Nome, telefone, e-mail e documentos não fazem parte do arquivo.
+4. A análise opcional seleciona no máximo 250 conversas marcadas que ainda possuem mensagens dentro dos 15 dias de retenção.
+5. Telefones, e-mails, CPF e CNPJ são removidos antes de qualquer análise externa.
+6. Mensagens do lead são tratadas como conteúdo não confiável; instruções contidas nelas não podem alterar a tarefa de auditoria.
+7. A rotina identifica baixa confiança, abandono e perguntas sem cobertura.
+8. O resultado entra em `Sugestões de FAQ`.
+9. Um revisor aceita ou rejeita a sugestão.
+10. Mesmo aceita, a sugestão ainda precisa de uma fonte oficial aprovada para ser transformada em FAQ pública.
 
 Não há autoaprendizado direto nem publicação automática no RAG. Isso evita que uma resposta errada do bot, uma tentativa de prompt injection ou um dado fornecido pelo lead vire “verdade” na base.
 
@@ -124,11 +129,13 @@ O próprio container executa migrations aditivas e idempotentes antes de iniciar
 
 Comece com `MONITORING_AI_ANALYSIS_ENABLED=false`. Nesse modo, a rotina determinística já agrupa perguntas associadas a respostas de baixa confiança. Para ativar a revisão semântica, configure o token do SACF AI Worker apenas na VPS e altere a variável para `true`.
 
-A análise é iniciada manualmente por um revisor no botão `Analisar últimos 7 dias`. O processo roda em segundo plano e não bloqueia o atendimento.
+A análise é iniciada manualmente por um revisor no botão `Analisar marcadas`. O processo roda em segundo plano, considera somente a fila seletiva e não bloqueia o atendimento.
 
 ## Operação semanal sugerida
 
-- segunda-feira: executar a análise dos sete dias anteriores;
+- durante a semana: marcar com o sino somente conversas que apresentaram falha, dúvida ou risco;
+- antes de 15 dias: exportar a fila para manter um artefato anonimizado da rodada;
+- segunda-feira: executar a análise das conversas marcadas;
 - revisar primeiro itens de possível vazamento, possível alucinação e qualificação;
 - validar sugestões com Comercial/Produto e uma fonte oficial;
 - editar a FAQ pública em pull request;

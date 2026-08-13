@@ -34,6 +34,30 @@ test('painel abre o histórico pela rota compatível com a Vercel e identifica l
   assert.doesNotMatch(script, /api\(`\/api\/conversations\/\$\{encodeURIComponent\(id\)\}`\)/);
 });
 
+test('fila de revisão é seletiva, exportável e acessível pelo sino', async () => {
+  const [html, script, server, database] = await Promise.all([
+    readFile(new URL('../monitoring/public/index.html', import.meta.url), 'utf8'),
+    readFile(new URL('../monitoring/public/app.js', import.meta.url), 'utf8'),
+    readFile(new URL('../monitoring/server.mjs', import.meta.url), 'utf8'),
+    readFile(new URL('../monitoring/database.mjs', import.meta.url), 'utf8'),
+  ]);
+  assert.match(html, /Revisão humana seletiva/);
+  assert.match(html, /Exportar HTML/);
+  assert.match(html, /Exportar JSON/);
+  assert.match(script, /data-review-flag/);
+  assert.match(script, /api\/reviews\?limit=100/);
+  assert.match(server, /\/api\/reviews\/export/);
+  assert.match(server, /contact_data_redacted/);
+  assert.match(database, /r\.status = 'needs_action'/);
+});
+
+test('análise corrige tipagem do PostgreSQL e considera somente conversas marcadas', async () => {
+  const database = await readFile(new URL('../monitoring/database.mjs', import.meta.url), 'utf8');
+  assert.match(database, /status = \$2::varchar/);
+  assert.match(database, /error_code = \$5::varchar/);
+  assert.match(database, /latest_reviews r ON r\.conversation_key = c\.conversation_key AND r\.status = 'needs_action'/);
+});
+
 test('exemplo de produção restringe o painel aos dois e-mails autorizados', async () => {
   const environment = await readFile(new URL('../.env.example', import.meta.url), 'utf8');
   const allowed = environment.match(/^MONITORING_ALLOWED_EMAILS=(.+)$/m)?.[1].split(',').sort();
