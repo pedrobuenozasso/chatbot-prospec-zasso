@@ -17,7 +17,7 @@ humano será retomado na segunda-feira, 17 de agosto de 2026.
 | --- | --- |
 | Segunda a quinta | Encaminhamento atual, sem alteração |
 | Sexta e sábado | Qualifica, salva e agenda; não envia o botão comercial |
-| Domingo | Encaminhamento atual para novos leads; libera às 18h os leads agendados |
+| Domingo | Encaminhamento atual para novos leads; libera em lotes das 18h às 19h55 os leads agendados |
 | Depois da liberação | Um toque do lead reabre a janela de atendimento e libera o botão comercial |
 
 Não haverá segunda tentativa automática. Quem não interagir com a mensagem de
@@ -113,6 +113,8 @@ autenticada e chave separada, mantida somente no ambiente da VPS.
 - trava de idempotência para impedir envio duplicado;
 - limite de uma mensagem de domingo por protocolo;
 - nenhuma nova tentativa automática depois de uma entrega confirmada;
+- reserva sem resultado por 20 minutos vai para falha e revisão manual, sem
+  reenvio automático;
 - cancelamento se o lead reiniciar, pedir para parar ou já tiver sido
   encaminhado;
 - botão de pausa operacional antes de iniciar o disparo;
@@ -148,7 +150,7 @@ autenticada e chave separada, mantida somente no ambiente da VPS.
 
 - fazer prévia da fila às 17h30;
 - liberar automaticamente às 18h;
-- acompanhar entrega, falhas e respostas até 19h;
+- acompanhar entrega, falhas e respostas até 20h;
 - confirmar que o toque no botão produz o CTA comercial com resumo correto.
 
 ### Segunda-feira, 17 de agosto
@@ -198,9 +200,10 @@ da fila sempre devolve uma lista vazia, mesmo que o workflow esteja publicado.
 
 O workflow importável é
 [`n8n/weekend-handoff-sunday.json`](../n8n/weekend-handoff-sunday.json). Ele vem
-inativo, usa as credenciais já existentes `Zasso Chatbot API` e
-`Zasso Meta Cloud API`, processa uma entrega por vez e registra o resultado da
-Meta antes de avançar.
+inativo e usa as credenciais já existentes `Zasso Chatbot API` e
+`Zasso Meta Cloud API`. A cada cinco minutos, entre 18h e 19h55 de domingo,
+reserva até 25 protocolos, processa uma entrega por vez e registra o resultado
+da Meta antes de avançar. A janela suporta até 600 protocolos.
 
 ## Endpoints operacionais
 

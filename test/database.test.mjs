@@ -7,6 +7,7 @@ import { fileURLToPath } from 'node:url';
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const migration = readFileSync(resolve(root, 'db/migrations/001_conversation_storage.sql'), 'utf8');
 const cloudSqlCompose = readFileSync(resolve(root, 'docker-compose.cloudsql.yml'), 'utf8');
+const databaseSource = readFileSync(resolve(root, 'src/database.mjs'), 'utf8');
 
 test('migration operacional é aditiva e usa somente tabelas do chatbot', () => {
   const tables = [...migration.matchAll(/CREATE TABLE IF NOT EXISTS\s+([a-z_]+)/gi)]
@@ -27,4 +28,11 @@ test('deployment reutiliza o proxy interno sem publicar a porta do banco', () =>
   assert.doesNotMatch(cloudSqlCompose, /credentials-file|service-account\.json/);
   assert.doesNotMatch(cloudSqlCompose, /^\s*ports:/m);
   assert.doesNotMatch(cloudSqlCompose, /CLOUDSQL_DB_PASSWORD:\s*["']?[^${\s]/);
+});
+
+test('fila de fim de semana fecha resultados sem ambiguidade e não reenvia reservas órfãs', () => {
+  assert.match(databaseSource, /SET status = \$2::varchar/);
+  assert.match(databaseSource, /CASE WHEN \$2::varchar = 'sent'/);
+  assert.match(databaseSource, /claim_timeout_manual_review/);
+  assert.match(databaseSource, /status = 'sending'[\s\S]+interval '20 minutes'/);
 });

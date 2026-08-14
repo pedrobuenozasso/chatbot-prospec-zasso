@@ -413,6 +413,17 @@ export async function claimDueWeekendHandoffs(limit = config.weekendHandoffClaim
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
+    // Uma reserva abandonada indica interrupcao entre o claim e o registro do
+    // resultado. Nao a reenfileiramos automaticamente: a Meta pode ter aceitado
+    // a mensagem antes da queda e uma nova tentativa criaria duplicidade.
+    await client.query(
+      `UPDATE chatbot_weekend_handoffs
+       SET status = 'failed',
+           last_error_code = 'claim_timeout_manual_review',
+           updated_at = now()
+       WHERE status = 'sending'
+         AND claimed_at <= now() - interval '20 minutes'`,
+    );
     await client.query(
       `UPDATE chatbot_weekend_handoffs
        SET status = 'skipped', last_error_code = 'free_entry_expired', updated_at = now()
@@ -466,10 +477,10 @@ export async function completeWeekendHandoff({ protocol, status, metaMessageId =
     await client.query('BEGIN');
     const updated = await client.query(
       `UPDATE chatbot_weekend_handoffs
-       SET status = $2,
+       SET status = $2::varchar,
            meta_message_id = NULLIF($3, ''),
            last_error_code = NULLIF($4, ''),
-           sent_at = CASE WHEN $2 = 'sent' THEN now() ELSE sent_at END,
+           sent_at = CASE WHEN $2::varchar = 'sent' THEN now() ELSE sent_at END,
            updated_at = now()
        WHERE protocol = $1 AND status = 'sending'
        RETURNING conversation_key`,
