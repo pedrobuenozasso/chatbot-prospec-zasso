@@ -83,6 +83,12 @@ apenas diferenças de acentuação, maiúsculas, espaços ou pontuação. Mensag
 orgânicas sem o marcador continuam sendo atendidas pelo bot, mas não recebem o
 template automático de domingo.
 
+Os textos equivalentes configurados para português, inglês, alemão, francês e
+espanhol também são reconhecidos de forma exata. Independentemente da origem ou
+do idioma, nenhum lead que conclua a triagem na sexta-feira ou no sábado recebe
+o CTA comercial. Contatos sem origem elegível ficam retidos até voltarem após
+esse período, sem disparo automático que possa gerar cobrança.
+
 A solução definitiva será receber o webhook da Meta em um gateway próprio,
 registrar somente os identificadores mínimos de atribuição e repassar o evento
 integral à Evolution. Essa mudança deve ser homologada depois do piloto, pois
@@ -187,6 +193,8 @@ O chatbot deve receber estas variáveis somente pela VPS:
 ```dotenv
 WEEKEND_HANDOFF_ENABLED=false
 WEEKEND_HANDOFF_CAMPAIGN_MESSAGE=Olá! Posso ter mais informações sobre isso?
+# Marcadores adicionais opcionais, separados por ||
+WEEKEND_HANDOFF_CAMPAIGN_MESSAGES=
 WEEKEND_HANDOFF_TIMEZONE=America/Sao_Paulo
 WEEKEND_HANDOFF_RELEASE_AT=2026-08-16T18:00:00-03:00
 WEEKEND_HANDOFF_TEMPLATE_NAME=zasso_continuar_atendimento_fds

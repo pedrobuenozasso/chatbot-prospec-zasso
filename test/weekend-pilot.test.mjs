@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {
   captureWeekendCampaignEntry,
   matchesWeekendCampaignMessage,
+  shouldDeferCommercialHandoff,
   weekendQueueDecision,
 } from '../src/weekend-pilot.mjs';
 import { newConversation } from '../src/conversation.mjs';
@@ -11,8 +12,28 @@ test('reconhece somente variações inofensivas da mensagem configurada no anún
   assert.equal(matchesWeekendCampaignMessage('Olá! Posso ter mais informações sobre isso?'), true);
   assert.equal(matchesWeekendCampaignMessage('ola posso ter mais informacoes sobre isso'), true);
   assert.equal(matchesWeekendCampaignMessage('  OLÁ, posso ter mais informações sobre isso!!!  '), true);
+  assert.equal(matchesWeekendCampaignMessage('¡Hola! Me gustaría conseguir más información sobre esto.'), true);
   assert.equal(matchesWeekendCampaignMessage('Olá! Quero saber o preço.'), false);
   assert.equal(matchesWeekendCampaignMessage('Posso ter informações?'), false);
+});
+
+test('bloqueia o CTA comercial na sexta e no sábado independentemente do idioma', () => {
+  for (const now of [
+    new Date('2026-08-14T16:30:00-03:00'),
+    new Date('2026-08-15T16:30:00-03:00'),
+  ]) {
+    assert.equal(shouldDeferCommercialHandoff({ channel: 'whatsapp', now, enabled: true }), true);
+  }
+  assert.equal(shouldDeferCommercialHandoff({
+    channel: 'web',
+    now: new Date('2026-08-14T16:30:00-03:00'),
+    enabled: true,
+  }), false);
+  assert.equal(shouldDeferCommercialHandoff({
+    channel: 'whatsapp',
+    now: new Date('2026-08-16T16:30:00-03:00'),
+    enabled: true,
+  }), false);
 });
 
 test('marca somente a primeira mensagem de WhatsApp recebida na sexta ou sábado', () => {

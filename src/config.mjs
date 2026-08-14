@@ -41,6 +41,18 @@ function positiveIntegerEnvironment(name, fallback, minimum = 1, maximum = 3650)
   return value;
 }
 
+const weekendCampaignMessages = [
+  process.env.WEEKEND_HANDOFF_CAMPAIGN_MESSAGE,
+  'Olá! Posso ter mais informações sobre isso?',
+  'Hello! I would like to get more information about this.',
+  'Hallo! Ich möchte gerne weitere Informationen dazu erhalten.',
+  'Bonjour ! Je souhaiterais obtenir plus d’informations à ce sujet.',
+  '¡Hola! Me gustaría conseguir más información sobre esto.',
+  ...(process.env.WEEKEND_HANDOFF_CAMPAIGN_MESSAGES || '').split('||'),
+]
+  .map((value) => String(value || '').trim())
+  .filter((value, index, values) => value && value.length <= 240 && values.indexOf(value) === index);
+
 export const config = {
   faqDirectory: resolve(projectRoot, 'knowledge/public-faq'),
   indexPath: resolve(projectRoot, '.index/faq-index.json'),
@@ -67,6 +79,7 @@ export const config = {
   weekendHandoffEnabled: booleanEnvironment('WEEKEND_HANDOFF_ENABLED'),
   weekendHandoffCampaignMessage: process.env.WEEKEND_HANDOFF_CAMPAIGN_MESSAGE
     || 'Olá! Posso ter mais informações sobre isso?',
+  weekendHandoffCampaignMessages: weekendCampaignMessages,
   weekendHandoffTimezone: process.env.WEEKEND_HANDOFF_TIMEZONE || 'America/Sao_Paulo',
   weekendHandoffReleaseAt: process.env.WEEKEND_HANDOFF_RELEASE_AT || '',
   weekendHandoffEncryptionKey: process.env.WEEKEND_HANDOFF_ENCRYPTION_KEY || '',

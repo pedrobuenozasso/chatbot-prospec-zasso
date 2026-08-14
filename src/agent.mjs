@@ -11,7 +11,11 @@ import { commercialHandoff, queueQualifiedLead } from './handoff.mjs';
 import { normalizeLanguage, t } from './i18n.mjs';
 import { identifierFingerprint, recordEvent } from './observability.mjs';
 import { answer, assessQualificationReply, isPromptInjection, partitionQualificationMessage } from './rag.mjs';
-import { captureWeekendCampaignEntry, weekendQueueDecision } from './weekend-pilot.mjs';
+import {
+  captureWeekendCampaignEntry,
+  shouldDeferCommercialHandoff,
+  weekendQueueDecision,
+} from './weekend-pilot.mjs';
 
 const RESET_COMMANDS = new Set(['/start', '/reset', '/restart', '/reiniciar', '/neustart', '/recommencer']);
 const STOP_COMMANDS = /^(?:\/stop|parar|cancelar|n[aã]o quero mais|stop|cancel|unsubscribe)$/iu;
@@ -79,8 +83,8 @@ function response(state, messages, extra = {}) {
   };
 }
 
-async function finishQualification(conversationId, state) {
-  if (['queued', 'weekend_queued', 'weekend_template_sent', 'commercial_cta_sent'].includes(state.handoffStatus)
+async function finishQualification(conversationId, state, { channel = 'whatsapp', now = new Date() } = {}) {
+  if (['queued', 'weekend_queued', 'weekend_deferred', 'weekend_template_sent', 'commercial_cta_sent'].includes(state.handoffStatus)
     && state.handoffProtocol) {
     return {
       status: state.handoffStatus,
@@ -94,6 +98,10 @@ async function finishQualification(conversationId, state) {
     state.handoffStatus = 'weekend_queued';
     state.weekendHandoff = weekend;
     result.status = 'weekend_queued';
+  } else if (shouldDeferCommercialHandoff({ channel, now })) {
+    state.handoffStatus = 'weekend_deferred';
+    state.weekendHandoff = { eligible: false, reason: weekend.reason };
+    result.status = 'weekend_deferred';
   } else {
     state.handoffStatus = result.status;
   }
@@ -110,6 +118,9 @@ function completedMessages(state, acknowledgement, handoff, contentAnswer = '') 
   if (handoff.status === 'weekend_queued') {
     return [contentAnswer, confirmation, t(state.language, 'weekendQueued')].filter(Boolean);
   }
+  if (handoff.status === 'weekend_deferred') {
+    return [contentAnswer, confirmation, t(state.language, 'weekendDeferred')].filter(Boolean);
+  }
   return [
     contentAnswer,
     confirmation,
@@ -125,6 +136,7 @@ export async function processInboundMessage({
   language = 'pt-BR',
   eventType = 'message',
   channel = 'whatsapp',
+  now = new Date(),
 }) {
   const languageHint = normalizeLanguage(language);
   const cleanedText = String(text).trim();
@@ -133,7 +145,7 @@ export async function processInboundMessage({
   // Marca somente a primeira mensagem de uma conversa nova. O marcador não é
   // suficiente para disparar nada sozinho: a fila e o template continuam
   // protegidos pela feature flag e pelas validações do piloto.
-  captureWeekendCampaignEntry(state, { text: cleanedText, channel });
+  captureWeekendCampaignEntry(state, { text: cleanedText, channel, now });
 
   if (isDuplicate(state, messageId)) {
     recordEvent('duplicate_message_ignored', {
@@ -184,6 +196,18 @@ export async function processInboundMessage({
       saveProgress(conversationId, state, messageId);
       return response(state, [t(state.language, 'weekendWaiting')]);
     }
+    if (state.handoffStatus === 'weekend_deferred') {
+      if (shouldDeferCommercialHandoff({ channel, now })) {
+        saveProgress(conversationId, state, messageId);
+        return response(state, [t(state.language, 'weekendDeferred')]);
+      }
+      const commercial = commercialHandoff(state);
+      state.handoffStatus = 'commercial_cta_sent';
+      saveProgress(conversationId, state, messageId);
+      return response(state, [`${t(state.language, 'commercialCta')}\n\n${commercial.url}`], {
+        weekendResumed: true,
+      });
+    }
     saveProgress(conversationId, state, messageId);
     recordEvent('post_handoff_redirected', {
       conversationFingerprint: identifierFingerprint(conversationId),
@@ -223,7 +247,7 @@ export async function processInboundMessage({
       const contentAnswer = `${result.answer}${sourceList(result.sources, result.language)}`.slice(0, 4000);
 
       if (progress.completed) {
-        const handoff = await finishQualification(conversationId, progress.state);
+        const handoff = await finishQualification(conversationId, progress.state, { channel, now });
         saveProgress(conversationId, progress.state, messageId);
         return response(
           progress.state,
@@ -254,7 +278,7 @@ export async function processInboundMessage({
 
     const progress = advanceQualification(state, cleanedText, state.language);
     if (progress.completed) {
-      const handoff = await finishQualification(conversationId, progress.state);
+      const handoff = await finishQualification(conversationId, progress.state, { channel, now });
       saveProgress(conversationId, progress.state, messageId);
       return response(
         progress.state,

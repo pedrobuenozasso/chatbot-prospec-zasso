@@ -30,6 +30,13 @@ function qualifiedAgroState() {
   return state;
 }
 
+function unmarkedQualifiedAgroState(language) {
+  const state = qualifiedAgroState();
+  state.language = language;
+  state.entrySource = { type: 'unknown' };
+  return state;
+}
+
 test('qualificação elegível entra na fila sem expor o CTA comercial', async () => {
   const conversationId = 'whatsapp:weekend:queued';
   restoreConversation(conversationId, qualifiedAgroState());
@@ -79,4 +86,53 @@ test('resposta ao template libera o CTA e um pedido de parada cancela a fila', a
   });
   assert.equal(stopped.handoffStatus, 'weekend_cancelled');
   assert.match(stopped.messages[0], /Cancelei/i);
+});
+
+test('sexta e sábado nunca expõem o CTA comercial nos cinco idiomas', async () => {
+  for (const [index, language] of ['pt-BR', 'en-US', 'de-DE', 'fr-FR', 'es-ES'].entries()) {
+    const conversationId = `whatsapp:weekend:deferred:${language}`;
+    restoreConversation(conversationId, unmarkedQualifiedAgroState(language));
+    const result = await processInboundMessage({
+      conversationId,
+      messageId: `deferred-${index}`,
+      text: '20',
+      language,
+      channel: 'whatsapp',
+      now: new Date(index % 2 ? '2026-08-15T16:33:00-03:00' : '2026-08-14T16:33:00-03:00'),
+    });
+    assert.equal(result.qualified, true);
+    assert.equal(result.handoffStatus, 'weekend_deferred');
+    assert.doesNotMatch(result.messages.join('\n'), /wa\.me\//i);
+  }
+});
+
+test('lead sem marcador recebe o CTA somente quando volta após sexta e sábado', async () => {
+  const conversationId = 'whatsapp:weekend:deferred-resumed';
+  const state = unmarkedQualifiedAgroState('es-ES');
+  state.stage = 'completed';
+  state.handoffStatus = 'weekend_deferred';
+  state.handoffProtocol = 'ZAS-20260814-SPANISH';
+  state.qualification.area = '20 hectares';
+  state.qualification.areaHectares = 20;
+  restoreConversation(conversationId, state);
+
+  const waiting = await processInboundMessage({
+    conversationId,
+    messageId: 'spanish-friday',
+    text: 'Gracias',
+    channel: 'whatsapp',
+    now: new Date('2026-08-14T17:00:00-03:00'),
+  });
+  assert.equal(waiting.handoffStatus, 'weekend_deferred');
+  assert.doesNotMatch(waiting.messages.join('\n'), /wa\.me\//i);
+
+  const resumed = await processInboundMessage({
+    conversationId,
+    messageId: 'spanish-sunday',
+    text: 'Quiero continuar',
+    channel: 'whatsapp',
+    now: new Date('2026-08-16T10:00:00-03:00'),
+  });
+  assert.equal(resumed.handoffStatus, 'commercial_cta_sent');
+  assert.match(resumed.messages.join('\n'), /https:\/\/wa\.me\//i);
 });

@@ -12,17 +12,29 @@ export function canonicalCampaignMessage(value) {
 
 export function matchesWeekendCampaignMessage(
   text,
-  expected = config.weekendHandoffCampaignMessage,
+  expected = config.weekendHandoffCampaignMessages,
 ) {
   const supplied = canonicalCampaignMessage(text);
-  const marker = canonicalCampaignMessage(expected);
-  return Boolean(supplied && marker && supplied === marker);
+  const markers = (Array.isArray(expected) ? expected : [expected])
+    .map(canonicalCampaignMessage)
+    .filter(Boolean);
+  return Boolean(supplied && markers.includes(supplied));
 }
 
 export function localWeekday(now = new Date(), timezone = config.weekendHandoffTimezone) {
   return new Intl.DateTimeFormat('en-US', { weekday: 'short', timeZone: timezone })
     .format(now)
     .toLocaleLowerCase('en-US');
+}
+
+export function shouldDeferCommercialHandoff({
+  channel = 'whatsapp',
+  now = new Date(),
+  enabled = config.weekendHandoffEnabled,
+} = {}) {
+  return enabled
+    && channel === 'whatsapp'
+    && ['fri', 'sat'].includes(localWeekday(now));
 }
 
 export function captureWeekendCampaignEntry(state, {
