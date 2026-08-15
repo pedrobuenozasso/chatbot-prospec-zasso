@@ -44,6 +44,7 @@ function positiveIntegerEnvironment(name, fallback, minimum = 1, maximum = 3650)
 const weekendCampaignMessages = [
   process.env.WEEKEND_HANDOFF_CAMPAIGN_MESSAGE,
   'Olá! Posso ter mais informações sobre isso?',
+  'Olá! Posso saber mais informações sobre isto?',
   'Hello! I would like to get more information about this.',
   'Hallo! Ich möchte gerne weitere Informationen dazu erhalten.',
   'Bonjour ! Je souhaiterais obtenir plus d’informations à ce sujet.',

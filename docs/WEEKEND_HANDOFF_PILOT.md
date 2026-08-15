@@ -83,8 +83,9 @@ apenas diferenças de acentuação, maiúsculas, espaços ou pontuação. Mensag
 orgânicas sem o marcador continuam sendo atendidas pelo bot, mas não recebem o
 template automático de domingo.
 
-Os textos equivalentes configurados para português, inglês, alemão, francês e
-espanhol também são reconhecidos de forma exata. Independentemente da origem ou
+Os textos equivalentes configurados para português brasileiro, português de
+Portugal, inglês, alemão, francês e espanhol também são reconhecidos de forma
+exata. Independentemente da origem ou
 do idioma, nenhum lead que conclua a triagem na sexta-feira ou no sábado recebe
 o CTA comercial. Contatos sem origem elegível ficam retidos até voltarem após
 esse período, sem disparo automático que possa gerar cobrança.

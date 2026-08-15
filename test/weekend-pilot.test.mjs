@@ -12,6 +12,7 @@ test('reconhece somente variações inofensivas da mensagem configurada no anún
   assert.equal(matchesWeekendCampaignMessage('Olá! Posso ter mais informações sobre isso?'), true);
   assert.equal(matchesWeekendCampaignMessage('ola posso ter mais informacoes sobre isso'), true);
   assert.equal(matchesWeekendCampaignMessage('  OLÁ, posso ter mais informações sobre isso!!!  '), true);
+  assert.equal(matchesWeekendCampaignMessage('Olá! Posso saber mais informações sobre isto?'), true);
   assert.equal(matchesWeekendCampaignMessage('¡Hola! Me gustaría conseguir más información sobre esto.'), true);
   assert.equal(matchesWeekendCampaignMessage('Olá! Quero saber o preço.'), false);
   assert.equal(matchesWeekendCampaignMessage('Posso ter informações?'), false);
