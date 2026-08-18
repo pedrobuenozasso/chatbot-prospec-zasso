@@ -152,7 +152,7 @@ function metric(label, value, note = '') {
 function distributionRows(rows = [], empty = 'Sem dados no período') {
   if (!rows.length) return `<div class="empty-state">${escapeHtml(empty)}</div>`;
   const maximum = Math.max(...rows.map((row) => Number(row.value) || 0), 1);
-  return rows.map((row) => `<div class="bar-row"><strong>${escapeHtml(friendly(row.label))}</strong><div class="bar-track"><div class="bar-fill" style="width:${Math.max(4, (Number(row.value) || 0) / maximum * 100)}%"></div></div><b>${Number(row.value) || 0}</b></div>`).join('');
+  return rows.map((row) => `<div class="bar-row"><strong>${escapeHtml(friendly(row.label))}</strong><progress class="bar-progress" max="100" value="${Math.max(4, (Number(row.value) || 0) / maximum * 100)}" aria-label="${escapeHtml(friendly(row.label))}"></progress><b>${Number(row.value) || 0}</b></div>`).join('');
 }
 
 function rankRows(rows = [], empty = 'Sem dados no período') {
@@ -377,15 +377,14 @@ function campaignTimelineChart(rows = [], currency = 'BRL', period = {}) {
   const spendArea = `${spendLine} L ${spendPoints.at(-1)[0].toFixed(2)} 100 L ${spendPoints[0][0].toFixed(2)} 100 Z`;
   const resultArea = `${resultLine} L ${resultPoints.at(-1)[0].toFixed(2)} 100 L ${resultPoints[0][0].toFixed(2)} 100 Z`;
   const columns = completedRows.map((row, index) => {
-    const spendHeight = ((Number(row.spend) || 0) / maximumSpend) * 78 + 8;
-    const resultHeight = ((Number(row.results) || 0) / maximumResults) * 78 + 8;
     const date = new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: '2-digit' }).format(new Date(`${row.date}T12:00:00Z`));
     const title = `${date}: ${formatCurrency(row.spend, currency)} · ${formatNumber(row.results)} conversa(s)`;
     const label = index % labelStep === 0 || index === completedRows.length - 1 ? date : '';
     const costPerResult = Number(row.results) > 0 ? Number(row.spend) / Number(row.results) : null;
-    return `<div class="campaign-chart-column" tabindex="0" role="group" aria-label="${escapeHtml(title)}"><div class="campaign-chart-track"><i class="campaign-hover-rule" aria-hidden="true"></i><i class="campaign-chart-point campaign-chart-point-spend" style="--point-height:${spendHeight.toFixed(2)}" aria-hidden="true"></i><i class="campaign-chart-point campaign-chart-point-results" style="--point-height:${resultHeight.toFixed(2)}" aria-hidden="true"></i><div class="campaign-chart-tooltip"><strong>${escapeHtml(date)}</strong><span>Investimento <b>${escapeHtml(formatCurrency(row.spend, currency))}</b></span><span>Conversas <b>${escapeHtml(formatNumber(row.results))}</b></span><span>Custo/conversa <b>${costPerResult == null ? '—' : escapeHtml(formatCurrency(costPerResult, currency))}</b></span></div></div><span class="campaign-chart-date">${escapeHtml(label)}</span></div>`;
+    return `<div class="campaign-chart-column" tabindex="0" role="group" aria-label="${escapeHtml(title)}"><div class="campaign-chart-track"><i class="campaign-hover-rule" aria-hidden="true"></i><div class="campaign-chart-tooltip"><strong>${escapeHtml(date)}</strong><span>Investimento <b>${escapeHtml(formatCurrency(row.spend, currency))}</b></span><span>Conversas <b>${escapeHtml(formatNumber(row.results))}</b></span><span>Custo/conversa <b>${costPerResult == null ? '—' : escapeHtml(formatCurrency(costPerResult, currency))}</b></span></div></div><span class="campaign-chart-date">${escapeHtml(label)}</span></div>`;
   }).join('');
-  return `<div class="campaign-chart-report"><div class="campaign-chart-summary"><div><span>Média diária</span><strong>${escapeHtml(formatCurrency(totalSpend / completedRows.length, currency))}</strong></div><div><span>Pico de investimento</span><strong>${escapeHtml(bestDayLabel)} · ${escapeHtml(formatCurrency(bestDay.spend, currency))}</strong></div><div><span>Resultado do período</span><strong>${escapeHtml(formatNumber(totalResults))} conversas</strong></div></div><div class="campaign-chart-legend"><span><i class="legend-spend"></i>Investimento diário</span><span><i class="legend-results"></i>Conversas · máximo ${escapeHtml(formatNumber(maximumResults))}/dia</span><em>Passe o cursor ou toque para comparar cada dia.</em></div><div class="campaign-timeline-scroll"><div class="campaign-timeline" style="--chart-days:${completedRows.length}"><div class="campaign-chart-axis" aria-hidden="true"><span>${escapeHtml(formatCompactCurrency(maximumSpend, currency))}</span><span>${escapeHtml(formatCompactCurrency(maximumSpend / 2, currency))}</span><span>${escapeHtml(formatCompactCurrency(0, currency))}</span></div><div class="campaign-chart-data"><div class="campaign-chart-grid" aria-hidden="true"><i></i><i></i><i></i></div><svg class="campaign-series-chart" viewBox="0 0 1000 100" preserveAspectRatio="none" aria-hidden="true"><path class="campaign-area campaign-area-spend" d="${spendArea}"/><path class="campaign-area campaign-area-results" d="${resultArea}"/><path class="campaign-line campaign-line-spend" d="${spendLine}" vector-effect="non-scaling-stroke"/><path class="campaign-line campaign-line-results" d="${resultLine}" vector-effect="non-scaling-stroke"/></svg><div class="campaign-chart-columns">${columns}</div></div></div></div></div>`;
+  const density = completedRows.length <= 7 ? 'short' : completedRows.length <= 14 ? 'medium' : completedRows.length <= 31 ? 'long' : 'extended';
+  return `<div class="campaign-chart-report"><div class="campaign-chart-summary"><div><span>Média diária</span><strong>${escapeHtml(formatCurrency(totalSpend / completedRows.length, currency))}</strong></div><div><span>Pico de investimento</span><strong>${escapeHtml(bestDayLabel)} · ${escapeHtml(formatCurrency(bestDay.spend, currency))}</strong></div><div><span>Resultado do período</span><strong>${escapeHtml(formatNumber(totalResults))} conversas</strong></div></div><div class="campaign-chart-legend"><span><i class="legend-spend"></i>Investimento diário</span><span><i class="legend-results"></i>Conversas · máximo ${escapeHtml(formatNumber(maximumResults))}/dia</span><em>Toque em um ponto. No celular, arraste o gráfico para navegar.</em></div><div class="campaign-timeline-scroll"><div class="campaign-timeline campaign-timeline-${density}"><div class="campaign-chart-axis" aria-hidden="true"><span>${escapeHtml(formatCompactCurrency(maximumSpend, currency))}</span><span>${escapeHtml(formatCompactCurrency(maximumSpend / 2, currency))}</span><span>${escapeHtml(formatCompactCurrency(0, currency))}</span></div><div class="campaign-chart-data"><div class="campaign-chart-grid" aria-hidden="true"><i></i><i></i><i></i></div><svg class="campaign-series-chart" viewBox="0 0 1000 100" preserveAspectRatio="none" aria-hidden="true"><path class="campaign-area campaign-area-spend" d="${spendArea}"/><path class="campaign-area campaign-area-results" d="${resultArea}"/><path class="campaign-line campaign-line-spend" d="${spendLine}" vector-effect="non-scaling-stroke"/><path class="campaign-line campaign-line-results" d="${resultLine}" vector-effect="non-scaling-stroke"/></svg><div class="campaign-chart-columns">${columns}</div></div></div></div></div>`;
 }
 
 function campaignChart(rows = [], currency = 'BRL', period = {}) {
@@ -401,23 +400,22 @@ function campaignSpendDistribution(items = [], currency = 'BRL') {
   const ranked = allRanked.slice(0, 4);
   if (!ranked.length) return '<div class="empty-state">Nenhum investimento registrado neste período.</div>';
   const total = items.reduce((sum, item) => sum + Number(item.metrics?.spend || 0), 0) || 1;
-  const palette = ['var(--color-accent)', 'var(--color-meta)', 'var(--color-accent-strong)', 'var(--color-chart-blue-soft)', 'var(--color-rule)'];
   const entries = ranked.map((item) => ({ name: item.name, spend: Number(item.metrics?.spend || 0) }));
   const remaining = allRanked.slice(4).reduce((sum, item) => sum + Number(item.metrics?.spend || 0), 0);
   if (remaining > 0) entries.push({ name: 'Outras campanhas', spend: remaining });
   let cursor = 0;
-  const slices = entries.map((item, index) => {
+  const segments = entries.map((item, index) => {
     const share = (item.spend / total) * 100;
-    const start = cursor;
+    const offset = cursor;
     cursor += share;
-    return `${palette[index]} ${start.toFixed(2)}% ${cursor.toFixed(2)}%`;
-  }).join(', ');
+    return `<circle class="campaign-donut-segment campaign-donut-segment-${index}" cx="21" cy="21" r="15.9155" pathLength="100" fill="none" stroke-dasharray="${share.toFixed(2)} ${(100 - share).toFixed(2)}" stroke-dashoffset="${(-offset).toFixed(2)}"/>`;
+  }).join('');
   const legend = entries.map((item, index) => {
     const spend = Number(item.spend || 0);
     const share = (spend / total) * 100;
-    return `<div class="campaign-distribution-item"><i class="campaign-distribution-dot" style="--distribution-color:${palette[index]}" aria-hidden="true"></i><div><strong>${escapeHtml(item.name)}</strong><span>${escapeHtml(formatCurrency(spend, currency))} · ${escapeHtml(formatPercent(share))}</span></div></div>`;
+    return `<div class="campaign-distribution-item"><i class="campaign-distribution-dot campaign-distribution-dot-${index}" aria-hidden="true"></i><div><strong>${escapeHtml(item.name)}</strong><span>${escapeHtml(formatCurrency(spend, currency))} · ${escapeHtml(formatPercent(share))}</span></div></div>`;
   }).join('');
-  return `<div class="campaign-donut-wrap"><div class="campaign-donut" style="--donut-slices:conic-gradient(${slices})" role="img" aria-label="Distribuição do investimento entre campanhas"><div><span>Investimento</span><strong>${escapeHtml(formatCurrency(total, currency))}</strong><em>no período</em></div></div><div class="campaign-donut-legend">${legend}</div></div>`;
+  return `<div class="campaign-donut-wrap"><div class="campaign-donut" role="img" aria-label="Distribuição do investimento entre campanhas"><svg viewBox="0 0 42 42" aria-hidden="true">${segments}</svg><div><span>Investimento</span><strong>${escapeHtml(formatCurrency(total, currency))}</strong><em>no período</em></div></div><div class="campaign-donut-legend">${legend}</div></div>`;
 }
 
 function campaignFunnel(totals = {}) {
@@ -427,7 +425,7 @@ function campaignFunnel(totals = {}) {
   const maximum = Math.max(Number(totals.impressions) || 0, 1);
   return rows.map(([label, value]) => {
     const width = Math.max(4, (Number(value) || 0) / maximum * 100);
-    return `<div class="campaign-funnel-step"><div><span>${escapeHtml(label)}</span><strong>${escapeHtml(formatNumber(value))}</strong></div><div class="campaign-funnel-track"><i style="--funnel-width:${width.toFixed(2)}" aria-hidden="true"></i></div></div>`;
+    return `<div class="campaign-funnel-step"><div><span>${escapeHtml(label)}</span><strong>${escapeHtml(formatNumber(value))}</strong></div><progress class="campaign-funnel-progress" max="100" value="${width.toFixed(2)}" aria-label="${escapeHtml(label)}"></progress></div>`;
   }).join('');
 }
 

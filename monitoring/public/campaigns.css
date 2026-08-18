@@ -1411,7 +1411,7 @@
   display: grid;
   grid-template-columns: 3.75rem minmax(0, 1fr);
   gap: var(--space-sm);
-  min-width: max(100%, calc(var(--chart-days) * 2.75rem + 4.5rem));
+  min-width: 100%;
 }
 
 .campaign-chart-axis {
@@ -1476,14 +1476,14 @@
 .campaign-chart-columns {
   position: relative;
   z-index: var(--z-raised);
-  display: grid;
-  grid-template-columns: repeat(var(--chart-days), minmax(1.75rem, 1fr));
+  display: flex;
   gap: var(--space-xs);
   height: 15rem;
 }
 
 .campaign-chart-column {
   display: grid;
+  flex: 1 1 0;
   grid-template-rows: 13rem 2rem;
   min-width: 0;
   outline: 2px solid transparent;
@@ -1587,7 +1587,7 @@
   opacity: 1;
   pointer-events: auto;
   transform: translate(-50%, 0);
-  transition-delay: 800ms;
+  transition-delay: 120ms;
 }
 
 .campaign-chart-column:focus-visible .campaign-chart-tooltip {
@@ -1770,7 +1770,7 @@
 }
 
 .campaign-chart-columns {
-  grid-template-columns: repeat(var(--chart-days), minmax(0, 1fr));
+  display: flex;
 }
 
 .area-card-whatsapp .area-card-brand {
@@ -2208,9 +2208,28 @@
   aspect-ratio: 1;
   margin: var(--space-xs) auto;
   border-radius: 50%;
-  background: var(--donut-slices);
+  background: transparent;
   box-shadow: var(--shadow-soft);
 }
+
+.campaign-donut > svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg);
+  filter: drop-shadow(0 0.75rem 1.25rem color-mix(in oklch, var(--color-ink), transparent 88%));
+}
+
+.campaign-donut-segment {
+  stroke-width: 7;
+}
+
+.campaign-donut-segment-0 { stroke: var(--color-accent); }
+.campaign-donut-segment-1 { stroke: var(--color-meta); }
+.campaign-donut-segment-2 { stroke: var(--color-accent-strong); }
+.campaign-donut-segment-3 { stroke: var(--color-chart-blue-soft); }
+.campaign-donut-segment-4 { stroke: var(--color-rule-strong); }
 
 .campaign-donut::after {
   content: "";
@@ -2276,6 +2295,50 @@
   box-shadow: 0 0 0 0.2rem color-mix(in oklch, var(--distribution-color), transparent 82%);
 }
 
+.campaign-distribution-dot-0 { --distribution-color: var(--color-accent); }
+.campaign-distribution-dot-1 { --distribution-color: var(--color-meta); }
+.campaign-distribution-dot-2 { --distribution-color: var(--color-accent-strong); }
+.campaign-distribution-dot-3 { --distribution-color: var(--color-chart-blue-soft); }
+.campaign-distribution-dot-4 { --distribution-color: var(--color-rule-strong); }
+
+.bar-progress,
+.campaign-funnel-progress {
+  width: 100%;
+  height: 0.55rem;
+  overflow: hidden;
+  border: 0;
+  border-radius: var(--radius-xl);
+  background: var(--color-paper-muted);
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+.bar-progress::-webkit-progress-bar,
+.campaign-funnel-progress::-webkit-progress-bar {
+  border-radius: inherit;
+  background: var(--color-paper-muted);
+}
+
+.bar-progress::-webkit-progress-value,
+.campaign-funnel-progress::-webkit-progress-value {
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--color-accent-strong), var(--color-accent));
+}
+
+.bar-progress::-moz-progress-bar,
+.campaign-funnel-progress::-moz-progress-bar {
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--color-accent-strong), var(--color-accent));
+}
+
+.campaign-funnel-progress::-webkit-progress-value {
+  background: linear-gradient(90deg, var(--color-meta), var(--color-chart-blue-soft));
+}
+
+.campaign-funnel-progress::-moz-progress-bar {
+  background: linear-gradient(90deg, var(--color-meta), var(--color-chart-blue-soft));
+}
+
 .campaign-distribution-item span {
   max-width: none;
   color: var(--color-muted);
@@ -2319,12 +2382,34 @@
     width: min(13rem, 72vw);
   }
 
-  .campaign-timeline {
-    min-width: max(100%, calc(var(--chart-days) * 2.75rem + 4.5rem));
-  }
+  .campaign-timeline-short { min-width: 100%; }
+  .campaign-timeline-medium { min-width: 40rem; }
+  .campaign-timeline-long { min-width: 68rem; }
+  .campaign-timeline-extended { min-width: 118rem; }
 
   .campaign-chart-columns {
-    grid-template-columns: repeat(var(--chart-days), minmax(1.75rem, 1fr));
+    display: flex;
+  }
+
+  .campaign-chart-column {
+    flex: 1 0 1.75rem;
+  }
+}
+
+@media (min-width: 22rem) and (max-width: 39.999rem) {
+  .campaign-metrics-primary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-sm);
+  }
+
+  .campaign-metrics-primary .campaign-metric {
+    min-height: 7.75rem;
+    padding: var(--space-md);
+  }
+
+  .campaign-metrics-primary .campaign-metric strong {
+    font-size: clamp(1.25rem, 5.5vw, 1.55rem);
+    white-space: nowrap;
   }
 }
 
