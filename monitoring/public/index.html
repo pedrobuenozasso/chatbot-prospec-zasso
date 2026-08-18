@@ -59,21 +59,23 @@
         <div class="portal-session"><span id="portal-user"></span><button id="portal-logout" class="portal-logout" type="button">Sair</button></div>
       </header>
       <section class="portal-intro">
-        <p>Central de monitoramento</p>
-        <h1 id="portal-title">O que você quer analisar hoje?</h1>
-        <span>Escolha uma operação. Você poderá alternar entre elas a qualquer momento.</span>
+        <div>
+          <p>Central Zasso</p>
+          <h1 id="portal-title">O que você quer analisar hoje?</h1>
+        </div>
+        <span>Escolha uma área para começar. Cada operação tem sua própria navegação e você volta para esta Central quando quiser trocar.</span>
       </section>
       <section class="area-picker" aria-label="Áreas de monitoramento">
         <button class="area-card area-card-whatsapp" type="button" data-area="whatsapp">
-          <span class="area-card-number">01</span>
-          <span class="area-card-copy"><small>Atendimento inteligente</small><strong>WhatsApp</strong><em>Conversas, qualificação, revisões e segurança do chatbot.</em></span>
-          <span class="area-card-action">Abrir atendimento <b aria-hidden="true">→</b></span>
+          <span class="area-card-number">Atendimento</span>
+          <span class="area-card-copy"><small>Leads e chatbot</small><strong>WhatsApp</strong><em>Acompanhe conversas, qualificação, revisões e segurança.</em></span>
+          <span class="area-card-action">Analisar WhatsApp <b aria-hidden="true">→</b></span>
           <span class="area-card-signal" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span>
         </button>
         <button class="area-card area-card-meta" type="button" data-area="campaigns">
-          <span class="area-card-number">02</span>
-          <span class="area-card-copy"><small>Mídia e aquisição</small><strong>Campanhas Meta</strong><em>Investimento, alcance, cliques e conversas reportadas.</em></span>
-          <span class="area-card-action">Abrir campanhas <b aria-hidden="true">→</b></span>
+          <span class="area-card-number">Marketing</span>
+          <span class="area-card-copy"><small>Mídia e aquisição</small><strong>Campanhas Meta</strong><em>Compare investimento, alcance, cliques e conversas reportadas.</em></span>
+          <span class="area-card-action">Analisar campanhas <b aria-hidden="true">→</b></span>
           <span class="area-card-orbit" aria-hidden="true"><i></i><i></i><i></i></span>
         </button>
       </section>
@@ -82,18 +84,24 @@
 
     <div id="app-view" class="app-view hidden">
       <aside class="sidebar">
-        <div class="sidebar-brand"><img class="sidebar-logo sidebar-logo-round" src="/assets/zasso-logo-round-black.png" alt="Zasso"><div><strong>Intelligence</strong><span>Lead Operations</span></div></div>
+        <div class="sidebar-brand"><img class="sidebar-logo sidebar-logo-round" src="/assets/zasso-logo-round-black.png" alt="Zasso"><div><strong>Intelligence</strong><span id="sidebar-module-label">Lead Operations</span></div></div>
         <nav id="main-nav" aria-label="Navegação principal">
-          <button data-portal class="nav-item nav-home"><span>⌂</span> Central</button>
-          <p class="nav-section-label">WhatsApp</p>
-          <button data-view="overview" class="nav-item active"><span>⌁</span> Visão geral</button>
-          <button data-view="conversations" class="nav-item"><span>◫</span> Conversas</button>
-          <button data-view="quality" class="nav-item"><span>♢</span> Revisões e FAQs</button>
-          <button data-view="security" class="nav-item"><span>⌾</span> Segurança</button>
-          <p class="nav-section-label">Marketing</p>
-          <button data-view="campaigns" class="nav-item"><span>↗</span> Campanhas Meta</button>
-          <p class="nav-section-label admin-only">Administração</p>
-          <button data-view="users" class="nav-item admin-only"><span>◎</span> Acessos</button>
+          <button data-portal class="nav-item nav-home"><span>←</span> Voltar à Central</button>
+          <div id="whatsapp-nav" class="nav-module">
+            <p class="nav-section-label">WhatsApp</p>
+            <button data-view="overview" class="nav-item active"><span>⌁</span> Visão geral</button>
+            <button data-view="conversations" class="nav-item"><span>◫</span> Conversas</button>
+            <button data-view="quality" class="nav-item"><span>♢</span> Revisões e FAQs</button>
+            <button data-view="security" class="nav-item"><span>⌾</span> Segurança</button>
+            <p class="nav-section-label admin-only">Administração</p>
+            <button data-view="users" class="nav-item admin-only"><span>◎</span> Acessos</button>
+          </div>
+          <div id="marketing-nav" class="nav-module hidden">
+            <p class="nav-section-label">Marketing</p>
+            <button data-marketing-target="campaign-top" class="nav-item active"><span>⌁</span> Visão geral</button>
+            <button data-marketing-target="campaign-performance" class="nav-item"><span>↗</span> Desempenho</button>
+            <button data-marketing-target="campaign-list" class="nav-item"><span>◫</span> Campanhas</button>
+          </div>
         </nav>
         <div class="sidebar-footer">
           <div id="sidebar-user" class="sidebar-user"></div>
@@ -145,7 +153,7 @@
         </section>
 
         <section id="view-campaigns" class="view-section hidden">
-          <div class="campaign-toolbar">
+          <div id="campaign-top" class="campaign-toolbar section-anchor">
             <div class="campaign-context"><span class="meta-mark" aria-hidden="true">M</span><div><strong>Meta Ads</strong><span id="campaign-account">Conta de anúncios</span></div></div>
             <div class="campaign-filters">
               <label>Período<select id="campaign-days"><option value="7">7 dias</option><option value="14">14 dias</option><option value="30" selected>30 dias</option><option value="90">90 dias</option></select></label>
@@ -155,11 +163,11 @@
           <div id="campaign-setup" class="campaign-setup hidden"></div>
           <div id="campaign-content">
             <div id="campaign-metrics" class="campaign-metrics" aria-live="polite"></div>
-            <div class="campaign-layout">
+            <div id="campaign-performance" class="campaign-layout section-anchor">
               <article class="campaign-panel campaign-trend"><header><div><h2>Evolução diária</h2><p>Investimento e resultados reportados pela Meta.</p></div><span id="campaign-period" class="campaign-period"></span></header><div id="campaign-chart" class="campaign-chart"></div></article>
               <article class="campaign-panel campaign-summary"><header><div><h2>Leitura rápida</h2><p>Saúde do período selecionado.</p></div></header><div id="campaign-summary"></div></article>
             </div>
-            <article class="campaign-panel campaign-table-panel"><header><div><h2>Campanhas</h2><p>Dados consolidados por campanha.</p></div><span id="campaign-updated" class="campaign-period"></span></header><div id="campaign-table" class="table-wrap"></div></article>
+            <article id="campaign-list" class="campaign-panel campaign-table-panel section-anchor"><header><div><h2>Campanhas</h2><p>Dados consolidados por campanha.</p></div><span id="campaign-updated" class="campaign-period"></span></header><div id="campaign-table" class="table-wrap"></div></article>
           </div>
         </section>
 

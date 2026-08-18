@@ -5,6 +5,7 @@ const state = {
   conversationPage: 1,
   conversationLimit: 30,
   loginEmail: '',
+  area: '',
 };
 
 const byId = (id) => document.getElementById(id);
@@ -125,12 +126,18 @@ function showPortal() {
   byId('app-view').classList.add('hidden');
   byId('portal-view').classList.remove('hidden');
   byId('portal-user').textContent = state.user?.displayName || state.user?.email || '';
+  state.area = '';
 }
 
-function showApp() {
+function showApp(area = 'whatsapp') {
   byId('login-view').classList.add('hidden');
   byId('portal-view').classList.add('hidden');
   byId('app-view').classList.remove('hidden');
+  state.area = area;
+  byId('app-view').dataset.area = area;
+  byId('sidebar-module-label').textContent = area === 'campaigns' ? 'Marketing Intelligence' : 'Lead Operations';
+  byId('whatsapp-nav').classList.toggle('hidden', area !== 'whatsapp');
+  byId('marketing-nav').classList.toggle('hidden', area !== 'campaigns');
   byId('sidebar-user').innerHTML = `<strong>${escapeHtml(state.user.displayName)}</strong><span>${escapeHtml(friendly(state.user.role))}</span>`;
   document.querySelectorAll('.admin-only').forEach((element) => element.classList.toggle('hidden', state.user.role !== 'admin'));
   document.querySelectorAll('.reviewer-only').forEach((element) => element.classList.toggle('hidden', roleLevel[state.user.role] < roleLevel.reviewer));
@@ -321,7 +328,7 @@ async function loadCampaigns() {
   const status = byId('campaign-status').value;
   const params = new URLSearchParams({ days });
   if (status) params.set('status', status);
-  const data = await api(`/api/meta/campaigns?${params}`);
+  const data = await api(`/api/meta-campaigns?${params}`);
   byId('campaign-account').textContent = data.accountId || 'Conta ainda não configurada';
   byId('campaign-setup').classList.toggle('hidden', data.configured);
   byId('campaign-content').classList.toggle('hidden', !data.configured);
@@ -424,13 +431,22 @@ byId('portal-view').addEventListener('click', async (event) => {
   const area = event.target.closest('[data-area]');
   if (!area) return;
   area.dataset.state = 'loading';
-  showApp();
-  await navigate(area.dataset.area === 'campaigns' ? 'campaigns' : 'overview');
+  const selectedArea = area.dataset.area === 'campaigns' ? 'campaigns' : 'whatsapp';
+  showApp(selectedArea);
+  await navigate(selectedArea === 'campaigns' ? 'campaigns' : 'overview');
   delete area.dataset.state;
 });
 
 byId('main-nav').addEventListener('click', (event) => {
   if (event.target.closest('[data-portal]')) return showPortal();
+  const marketingButton = event.target.closest('[data-marketing-target]');
+  if (marketingButton) {
+    document.querySelectorAll('[data-marketing-target]').forEach((item) => item.classList.toggle('active', item === marketingButton));
+    const reveal = () => byId(marketingButton.dataset.marketingTarget)?.scrollIntoView({ block: 'start' });
+    if (state.view !== 'campaigns') navigate('campaigns').then(reveal);
+    else reveal();
+    return;
+  }
   const button = event.target.closest('[data-view]');
   if (button) navigate(button.dataset.view);
 });

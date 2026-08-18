@@ -88,3 +88,18 @@ test('implantação Vercel usa proxy fixo e não recebe credenciais do banco', a
   assert.match(proxy, /x-monitoring-proxy-token/);
   assert.match(proxy, /\^https:/);
 });
+
+test('central separa WhatsApp de campanhas e usa rota Meta compatível com a Vercel', async () => {
+  const [html, script, server] = await Promise.all([
+    readFile(new URL('../monitoring/public/index.html', import.meta.url), 'utf8'),
+    readFile(new URL('../monitoring/public/app.js', import.meta.url), 'utf8'),
+    readFile(new URL('../monitoring/server.mjs', import.meta.url), 'utf8'),
+  ]);
+  assert.match(html, /id="whatsapp-nav"/);
+  assert.match(html, /id="marketing-nav"/);
+  assert.match(html, /data-marketing-target="campaign-performance"/);
+  assert.match(html, /Voltar à Central/);
+  assert.match(script, /\/api\/meta-campaigns\?/);
+  assert.match(server, /'\/api\/meta-campaigns'/);
+  assert.match(script, /showApp\(selectedArea\)/);
+});

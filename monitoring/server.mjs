@@ -295,7 +295,7 @@ async function api(request, response, url) {
     return json(response, 200, { ok: true }, { 'set-cookie': [clearCookieHeader(), clearCsrfCookieHeader()] });
   }
   if (request.method === 'GET' && url.pathname === '/api/overview') return json(response, 200, await overview());
-  if (request.method === 'GET' && url.pathname === '/api/meta/campaigns') {
+  if (request.method === 'GET' && ['/api/meta/campaigns', '/api/meta-campaigns'].includes(url.pathname)) {
     const days = Math.max(7, Math.min(90, Number(url.searchParams.get('days')) || 30));
     const status = clean(url.searchParams.get('status'), 24).toUpperCase();
     const result = await campaignDashboard({ days, status });
