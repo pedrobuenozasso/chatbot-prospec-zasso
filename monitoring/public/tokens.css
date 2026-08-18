@@ -21,6 +21,16 @@
   --color-danger-soft: oklch(94% 0.035 26);
   --color-meta: oklch(55% 0.2 258);
   --color-meta-soft: oklch(94% 0.028 258);
+  --color-glass-light: oklch(99% 0.008 145 / 0.68);
+  --color-glass-light-hover: oklch(100% 0.006 145 / 0.84);
+  --color-glass-dark: oklch(15% 0.022 145 / 0.87);
+  --color-glass-dark-solid: oklch(15% 0.022 145);
+  --color-glass-edge: oklch(100% 0.006 145 / 0.7);
+  --color-glass-edge-dark: oklch(100% 0.006 145 / 0.16);
+  --color-glass-control-light: oklch(100% 0.006 145 / 0.14);
+  --color-glass-control-light-hover: oklch(100% 0.006 145 / 0.23);
+  --color-glass-control-dark: oklch(18% 0.02 145 / 0.09);
+  --color-glass-control-dark-hover: oklch(18% 0.02 145 / 0.15);
   --color-overlay: oklch(10% 0.012 145 / 0.58);
   --color-shadow: oklch(18% 0.018 145 / 0.1);
   --color-shadow-soft: oklch(18% 0.018 145 / 0.05);
@@ -28,6 +38,7 @@
   --font-display: "Inter Tight", "Avenir Next", ui-sans-serif, system-ui, sans-serif;
   --font-body: Inter, ui-sans-serif, system-ui, sans-serif;
   --font-data: var(--font-body);
+  --font-interface: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Helvetica Neue", Arial, sans-serif;
 
   --space-3xs: 0.125rem;
   --space-2xs: 0.25rem;

@@ -107,6 +107,7 @@ test('central separa WhatsApp de campanhas e usa rota Meta compatível com a Ver
   assert.match(html, /class="area-card-action area-card-button" type="button" data-area="whatsapp"/);
   assert.match(html, /class="area-card-action area-card-button" type="button" data-area="campaigns"/);
   assert.doesNotMatch(html, /<article[^>]+data-area=/);
+  assert.doesNotMatch(html, /class="area-card-number"/);
   assert.doesNotMatch(html, /area-card-signal|area-card-orbit/);
   assert.match(script, /\/api\/meta-campaigns\?/);
   assert.match(server, /'\/api\/meta-campaigns'/);
