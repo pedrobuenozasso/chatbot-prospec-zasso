@@ -21,6 +21,7 @@
   --color-danger-soft: oklch(94% 0.035 26);
   --color-meta: oklch(55% 0.2 258);
   --color-meta-soft: oklch(94% 0.028 258);
+  --color-chart-blue-soft: oklch(70% 0.11 230);
   --color-glass-light: oklch(99% 0.008 145 / 0.68);
   --color-glass-light-hover: oklch(100% 0.006 145 / 0.84);
   --color-glass-dark: oklch(15% 0.022 145 / 0.87);
@@ -31,6 +32,8 @@
   --color-glass-control-light-hover: oklch(100% 0.006 145 / 0.23);
   --color-glass-control-dark: oklch(18% 0.02 145 / 0.09);
   --color-glass-control-dark-hover: oklch(18% 0.02 145 / 0.15);
+  --color-glass-tooltip: oklch(99% 0.006 145 / 0.92);
+  --color-glass-donut-center: oklch(98.5% 0.008 145 / 0.94);
   --color-overlay: oklch(10% 0.012 145 / 0.58);
   --color-shadow: oklch(18% 0.018 145 / 0.1);
   --color-shadow-soft: oklch(18% 0.018 145 / 0.05);
