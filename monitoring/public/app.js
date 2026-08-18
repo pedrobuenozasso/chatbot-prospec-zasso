@@ -386,7 +386,57 @@ function campaignTimelineChart(rows = [], currency = 'BRL', period = {}) {
     return `<div class="campaign-chart-column" tabindex="0" role="group" aria-label="${escapeHtml(title)}"><div class="campaign-chart-track"><i class="campaign-hover-rule" aria-hidden="true"></i><div class="campaign-chart-tooltip"><strong>${escapeHtml(date)}</strong><span>Investimento <b>${escapeHtml(formatCurrency(row.spend, currency))}</b></span><span>Conversas <b>${escapeHtml(formatNumber(row.results))}</b></span><span>Custo/conversa <b>${costPerResult == null ? '—' : escapeHtml(formatCurrency(costPerResult, currency))}</b></span></div></div><span class="campaign-chart-date">${escapeHtml(label)}</span></div>`;
   }).join('');
   const density = completedRows.length <= 7 ? 'short' : completedRows.length <= 14 ? 'medium' : completedRows.length <= 31 ? 'long' : 'extended';
-  return `<div class="campaign-chart-report"><div class="campaign-chart-summary"><div><span>Média diária</span><strong>${escapeHtml(formatCurrency(totalSpend / completedRows.length, currency))}</strong></div><div><span>Pico de investimento</span><strong>${escapeHtml(bestDayLabel)} · ${escapeHtml(formatCurrency(bestDay.spend, currency))}</strong></div><div><span>Resultado do período</span><strong>${escapeHtml(formatNumber(totalResults))} conversas</strong></div></div><div class="campaign-chart-legend"><span><i class="legend-spend"></i>Investimento diário</span><span><i class="legend-results"></i>Conversas · máximo ${escapeHtml(formatNumber(maximumResults))}/dia</span><em>Toque em um ponto. No celular, arraste o gráfico para navegar.</em></div><div class="campaign-timeline-scroll"><div class="campaign-timeline campaign-timeline-${density}"><div class="campaign-chart-axis" aria-hidden="true"><span>${escapeHtml(formatCompactCurrency(maximumSpend, currency))}</span><span>${escapeHtml(formatCompactCurrency(maximumSpend / 2, currency))}</span><span>${escapeHtml(formatCompactCurrency(0, currency))}</span></div><div class="campaign-chart-data"><div class="campaign-chart-grid" aria-hidden="true"><i></i><i></i><i></i></div><svg class="campaign-series-chart" viewBox="0 0 1000 100" preserveAspectRatio="none" aria-hidden="true"><path class="campaign-area campaign-area-spend" d="${spendArea}"/><path class="campaign-area campaign-area-results" d="${resultArea}"/><path class="campaign-line campaign-line-spend" d="${spendLine}" vector-effect="non-scaling-stroke"/><path class="campaign-line campaign-line-results" d="${resultLine}" vector-effect="non-scaling-stroke"/></svg><div class="campaign-chart-columns">${columns}</div></div></div></div></div>`;
+  return `<div class="campaign-chart-report"><div class="campaign-chart-summary"><div><span>Média diária</span><strong>${escapeHtml(formatCurrency(totalSpend / completedRows.length, currency))}</strong></div><div><span>Pico de investimento</span><strong>${escapeHtml(bestDayLabel)} · ${escapeHtml(formatCurrency(bestDay.spend, currency))}</strong></div><div><span>Resultado do período</span><strong>${escapeHtml(formatNumber(totalResults))} conversas</strong></div></div><div class="campaign-chart-legend"><span><i class="legend-spend"></i>Investimento diário</span><span><i class="legend-results"></i>Conversas · máximo ${escapeHtml(formatNumber(maximumResults))}/dia</span><em>Toque em um dia para ver os detalhes.</em></div><div class="campaign-scroll-guide"><span>Arraste para ver todos os dias</span><div><button class="campaign-scroll-button" type="button" data-chart-scroll="-1" aria-label="Ver dias anteriores">←</button><button class="campaign-scroll-button" type="button" data-chart-scroll="1" aria-label="Ver próximos dias">→</button></div></div><div class="campaign-timeline-scroll" tabindex="0" aria-label="Gráfico diário rolável horizontalmente"><div class="campaign-timeline campaign-timeline-${density}"><div class="campaign-chart-axis" aria-hidden="true"><span>${escapeHtml(formatCompactCurrency(maximumSpend, currency))}</span><span>${escapeHtml(formatCompactCurrency(maximumSpend / 2, currency))}</span><span>${escapeHtml(formatCompactCurrency(0, currency))}</span></div><div class="campaign-chart-data"><div class="campaign-chart-grid" aria-hidden="true"><i></i><i></i><i></i></div><svg class="campaign-series-chart" viewBox="0 0 1000 100" preserveAspectRatio="none" aria-hidden="true"><path class="campaign-area campaign-area-spend" d="${spendArea}"/><path class="campaign-area campaign-area-results" d="${resultArea}"/><path class="campaign-line campaign-line-spend" d="${spendLine}" vector-effect="non-scaling-stroke"/><path class="campaign-line campaign-line-results" d="${resultLine}" vector-effect="non-scaling-stroke"/></svg><div class="campaign-chart-columns">${columns}</div></div></div></div></div>`;
+}
+
+function enableCampaignChartNavigation(root = document) {
+  root.querySelectorAll('.campaign-chart-report').forEach((report) => {
+    const scroller = report.querySelector('.campaign-timeline-scroll');
+    const guide = report.querySelector('.campaign-scroll-guide');
+    if (!scroller || !guide || scroller.dataset.navigationReady === 'true') return;
+    scroller.dataset.navigationReady = 'true';
+    const buttons = [...guide.querySelectorAll('[data-chart-scroll]')];
+    const update = () => {
+      const maximum = Math.max(0, scroller.scrollWidth - scroller.clientWidth);
+      guide.classList.toggle('hidden', maximum <= 2);
+      const previous = buttons.find((button) => button.dataset.chartScroll === '-1');
+      const next = buttons.find((button) => button.dataset.chartScroll === '1');
+      if (previous) previous.disabled = scroller.scrollLeft <= 2;
+      if (next) next.disabled = scroller.scrollLeft >= maximum - 2;
+    };
+    buttons.forEach((button) => button.addEventListener('click', () => {
+      const direction = Number(button.dataset.chartScroll) || 1;
+      scroller.scrollBy({ left: direction * Math.max(240, scroller.clientWidth * 0.78), behavior: 'smooth' });
+    }));
+    let pointerId = null;
+    let startX = 0;
+    let startScroll = 0;
+    scroller.addEventListener('pointerdown', (event) => {
+      if (event.button !== 0) return;
+      pointerId = event.pointerId;
+      startX = event.clientX;
+      startScroll = scroller.scrollLeft;
+      scroller.setPointerCapture(pointerId);
+      scroller.classList.add('is-dragging');
+    });
+    scroller.addEventListener('pointermove', (event) => {
+      if (pointerId !== event.pointerId) return;
+      const movement = startX - event.clientX;
+      if (Math.abs(movement) > 3) {
+        event.preventDefault();
+        scroller.scrollLeft = startScroll + movement;
+      }
+    }, { passive: false });
+    const stopDragging = (event) => {
+      if (pointerId !== event.pointerId) return;
+      pointerId = null;
+      scroller.classList.remove('is-dragging');
+    };
+    scroller.addEventListener('pointerup', stopDragging);
+    scroller.addEventListener('pointercancel', stopDragging);
+    scroller.addEventListener('scroll', update, { passive: true });
+    requestAnimationFrame(update);
+  });
 }
 
 function campaignChart(rows = [], currency = 'BRL', period = {}) {
@@ -495,6 +545,7 @@ function renderCampaignScreens(data, days) {
   byId('campaign-summary').innerHTML = `<div class="campaign-summary-list"><div class="campaign-summary-item"><span>Custo por conversa</span><strong>${totals.costPerResult == null ? '—' : escapeHtml(formatCurrency(totals.costPerResult, currency))}</strong></div><div class="campaign-summary-item"><span>CPC médio</span><strong>${escapeHtml(formatCurrency(totals.cpc, currency))}</strong></div><div class="campaign-summary-item"><span>CPM médio</span><strong>${escapeHtml(formatCurrency(totals.cpm, currency))}</strong></div></div>`;
   const query = String(byId('campaign-search').value || '').trim().toLocaleLowerCase('pt-BR');
   byId('campaign-table').innerHTML = campaignTable(query ? campaigns.filter((item) => String(item.name || '').toLocaleLowerCase('pt-BR').includes(query)) : campaigns, currency);
+  enableCampaignChartNavigation(byId('campaign-content'));
 }
 
 async function loadCampaigns() {

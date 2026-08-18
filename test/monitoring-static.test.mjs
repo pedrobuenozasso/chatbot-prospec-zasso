@@ -138,6 +138,10 @@ test('central separa WhatsApp de campanhas e usa rota Meta compatível com a Ver
   assert.match(script, /function campaignFunnel/);
   assert.match(script, /function campaignSpendDistribution/);
   assert.match(script, /function campaignTimelineChart/);
+  assert.match(script, /function enableCampaignChartNavigation/);
+  assert.match(script, /data-chart-scroll/);
+  assert.match(script, /setPointerCapture/);
+  assert.match(script, /scrollBy/);
   assert.match(script, /function smoothChartPath/);
   assert.match(script, /campaign-series-chart/);
   assert.match(script, /campaign-donut-wrap/);

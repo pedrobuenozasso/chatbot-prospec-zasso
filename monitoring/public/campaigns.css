@@ -1402,9 +1402,63 @@
 .campaign-timeline-scroll {
   min-width: 0;
   overflow-x: auto;
-  overflow-y: clip;
-  padding-bottom: var(--space-xs);
+  overflow-y: hidden;
+  padding: var(--space-xs) 0 var(--space-sm);
+  cursor: grab;
+  touch-action: pan-y;
+  overscroll-behavior-inline: contain;
+  scroll-behavior: smooth;
   scrollbar-color: var(--color-ink-raised) transparent;
+  -webkit-overflow-scrolling: touch;
+}
+
+.campaign-timeline-scroll.is-dragging {
+  cursor: grabbing;
+  user-select: none;
+  scroll-behavior: auto;
+}
+
+.campaign-timeline-scroll:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: var(--space-2xs);
+}
+
+.campaign-scroll-guide {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  min-height: 2.75rem;
+  padding: var(--space-xs) var(--space-sm);
+  border: var(--rule-thin) solid var(--color-glass-edge);
+  border-radius: var(--radius-md);
+  background: var(--color-glass-control-dark);
+  color: var(--color-muted);
+  font-size: var(--text-xs);
+  font-weight: 650;
+}
+
+.campaign-scroll-guide > div {
+  display: flex;
+  gap: var(--space-2xs);
+}
+
+.campaign-scroll-button {
+  display: grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  border: var(--rule-thin) solid var(--color-glass-edge);
+  border-radius: 50%;
+  background: var(--color-glass-light);
+  color: var(--color-ink-soft);
+  font-weight: 800;
+}
+
+.campaign-scroll-button:disabled {
+  cursor: default;
+  opacity: 0.32;
 }
 
 .campaign-timeline {
@@ -1585,14 +1639,12 @@
 
 .campaign-chart-column:hover .campaign-chart-tooltip {
   opacity: 1;
-  pointer-events: auto;
   transform: translate(-50%, 0);
   transition-delay: 120ms;
 }
 
 .campaign-chart-column:focus-visible .campaign-chart-tooltip {
   opacity: 1;
-  pointer-events: auto;
   transform: translate(-50%, 0);
   transition-delay: 0ms;
 }
