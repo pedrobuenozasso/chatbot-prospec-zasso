@@ -56,6 +56,12 @@ export const monitoringConfig = Object.freeze({
   aiTenant: process.env.SACF_AI_TENANT_LABEL || 'Zasso',
   aiTimeoutMs: integer('MONITORING_AI_TIMEOUT_MS', 120000, 10000, 300000),
   eventsPath: process.env.MONITORING_EVENTS_PATH || '/chatbot-logs/events.jsonl',
+  metaAccessToken: process.env.META_ADS_ACCESS_TOKEN || '',
+  metaAdAccountId: String(process.env.META_AD_ACCOUNT_ID || '').replace(/^act_/, ''),
+  metaGraphVersion: /^v\d+\.\d+$/.test(process.env.META_GRAPH_API_VERSION || '')
+    ? process.env.META_GRAPH_API_VERSION : 'v25.0',
+  metaTimeoutMs: integer('META_ADS_TIMEOUT_MS', 12000, 3000, 30000),
+  metaCacheSeconds: integer('META_ADS_CACHE_SECONDS', 300, 60, 3600),
 });
 
 export function assertSecureMonitoringConfig() {

@@ -1,0 +1,74 @@
+/* Hallmark · genre: modern-minimal · macrostructure: Workbench · theme: Zasso Operations · enrichment: none · nav: side rail · footer: inline */
+:root {
+  --color-paper: oklch(97.5% 0.008 145);
+  --color-paper-raised: oklch(99% 0.005 145);
+  --color-paper-muted: oklch(94.5% 0.012 145);
+  --color-rule: oklch(87% 0.014 145);
+  --color-rule-strong: oklch(73% 0.025 145);
+  --color-neutral: oklch(51% 0.018 145);
+  --color-muted: oklch(42% 0.02 145);
+  --color-ink-soft: oklch(28% 0.02 145);
+  --color-ink: oklch(16% 0.018 145);
+  --color-ink-raised: oklch(21% 0.02 145);
+  --color-accent: oklch(58% 0.15 145);
+  --color-accent-strong: oklch(48% 0.14 145);
+  --color-accent-soft: oklch(92% 0.055 145);
+  --color-accent-ink: oklch(98% 0.008 145);
+  --color-focus: oklch(64% 0.18 145);
+  --color-warning: oklch(61% 0.14 76);
+  --color-warning-soft: oklch(94% 0.04 76);
+  --color-danger: oklch(54% 0.18 26);
+  --color-danger-soft: oklch(94% 0.035 26);
+  --color-meta: oklch(55% 0.2 258);
+  --color-meta-soft: oklch(94% 0.028 258);
+  --color-overlay: oklch(10% 0.012 145 / 0.58);
+  --color-shadow: oklch(18% 0.018 145 / 0.1);
+  --color-shadow-soft: oklch(18% 0.018 145 / 0.05);
+
+  --font-display: "Inter Tight", "Avenir Next", ui-sans-serif, system-ui, sans-serif;
+  --font-body: Inter, ui-sans-serif, system-ui, sans-serif;
+  --font-data: var(--font-body);
+
+  --space-3xs: 0.125rem;
+  --space-2xs: 0.25rem;
+  --space-xs: 0.5rem;
+  --space-sm: 0.75rem;
+  --space-md: 1rem;
+  --space-lg: 1.5rem;
+  --space-xl: 2.5rem;
+  --space-2xl: 4rem;
+  --space-3xl: 6rem;
+
+  --text-xs: 0.7rem;
+  --text-sm: 0.82rem;
+  --text-base: 1rem;
+  --text-md: 1.25rem;
+  --text-lg: 1.56rem;
+  --text-xl: 1.95rem;
+  --text-2xl: 2.44rem;
+  --text-display: clamp(2.6rem, 5vw, 4.9rem);
+
+  --radius-sm: 0.5rem;
+  --radius-md: 0.85rem;
+  --radius-lg: 1.3rem;
+  --radius-xl: 1.8rem;
+  --rule-thin: 1px;
+  --shadow-whisper: 0 1px 2px var(--color-shadow-soft);
+  --shadow-raised: 0 1.2rem 3.5rem var(--color-shadow);
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in: cubic-bezier(0.7, 0, 0.84, 0);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --dur-micro: 120ms;
+  --dur-short: 220ms;
+  --dur-long: 420ms;
+  --z-base: 1;
+  --z-raised: 10;
+  --z-sticky: 200;
+  --z-modal: 400;
+  --z-toast: 500;
+}
+
+html,
+body {
+  overflow-x: clip;
+}

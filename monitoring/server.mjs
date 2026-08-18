@@ -32,6 +32,7 @@ import { newOpaqueToken, randomLoginCode, redactSensitiveText, sha256 } from './
 import { collectHealth, securityEvents } from './health.mjs';
 import { executeAnalysisRun } from './analysis.mjs';
 import { sendLoginCodeEmail } from './mail.mjs';
+import { campaignDashboard } from './meta.mjs';
 
 const currentDirectory = fileURLToPath(new URL('.', import.meta.url));
 const publicDirectory = join(currentDirectory, 'public');
@@ -294,6 +295,13 @@ async function api(request, response, url) {
     return json(response, 200, { ok: true }, { 'set-cookie': [clearCookieHeader(), clearCsrfCookieHeader()] });
   }
   if (request.method === 'GET' && url.pathname === '/api/overview') return json(response, 200, await overview());
+  if (request.method === 'GET' && url.pathname === '/api/meta/campaigns') {
+    const days = Math.max(7, Math.min(90, Number(url.searchParams.get('days')) || 30));
+    const status = clean(url.searchParams.get('status'), 24).toUpperCase();
+    const result = await campaignDashboard({ days, status });
+    await audit({ ...context, action: 'meta_campaigns_viewed', resourceType: 'ad_account', resource: result.accountId || 'not_configured', details: { days, status: status || 'all', cached: result.cached === true } });
+    return json(response, 200, result);
+  }
   if (request.method === 'GET' && url.pathname === '/api/health') return json(response, 200, await collectHealth());
   if (request.method === 'GET' && url.pathname === '/api/conversations') {
     return json(response, 200, await listConversations(pagination(url.searchParams)));

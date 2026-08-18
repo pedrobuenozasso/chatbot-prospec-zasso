@@ -21,6 +21,8 @@ const labels = {
   not_understood: 'Não compreendeu', faq_missing: 'FAQ ausente',
   qualification_issue: 'Falha na qualificação', possible_hallucination: 'Possível alucinação',
   possible_leak: 'Possível vazamento', needs_human_review: 'Revisão humana',
+  ACTIVE: 'Ativa', PAUSED: 'Pausada', ARCHIVED: 'Arquivada', DELETED: 'Excluída',
+  IN_PROCESS: 'Em processamento', WITH_ISSUES: 'Com problema',
 };
 
 function escapeHtml(value) {
@@ -83,6 +85,7 @@ function showLogin(message = '') {
   state.user = null;
   state.csrfToken = '';
   byId('app-view').classList.add('hidden');
+  byId('portal-view').classList.add('hidden');
   byId('login-view').classList.remove('hidden');
   byId('login-error').textContent = message;
 }
@@ -117,8 +120,16 @@ function showCodeStep(email) {
   form.elements.code.focus();
 }
 
+function showPortal() {
+  byId('login-view').classList.add('hidden');
+  byId('app-view').classList.add('hidden');
+  byId('portal-view').classList.remove('hidden');
+  byId('portal-user').textContent = state.user?.displayName || state.user?.email || '';
+}
+
 function showApp() {
   byId('login-view').classList.add('hidden');
+  byId('portal-view').classList.add('hidden');
   byId('app-view').classList.remove('hidden');
   byId('sidebar-user').innerHTML = `<strong>${escapeHtml(state.user.displayName)}</strong><span>${escapeHtml(friendly(state.user.role))}</span>`;
   document.querySelectorAll('.admin-only').forEach((element) => element.classList.toggle('hidden', state.user.role !== 'admin'));
@@ -263,11 +274,84 @@ async function loadUsers() {
   byId('user-table').innerHTML = data.users?.length ? `<table class="data-table"><thead><tr><th>Nome</th><th>E-mail</th><th>Papel</th><th>Último acesso</th><th>Status</th><th></th></tr></thead><tbody>${data.users.map((user) => `<tr><td>${escapeHtml(user.display_name)}</td><td>${escapeHtml(user.email)}</td><td>${escapeHtml(friendly(user.role))}</td><td>${escapeHtml(formatDate(user.last_login_at))}</td><td>${user.active ? badge('active') : badge('down')}</td><td><button class="small-button" data-user-id="${user.id}" data-user-active="${user.active ? 'false' : 'true'}" ${user.id === state.user.id ? 'disabled' : ''}>${user.active ? 'Desativar' : 'Ativar'}</button></td></tr>`).join('')}</tbody></table>` : '<div class="empty-state">Nenhum usuário cadastrado.</div>';
 }
 
+function formatNumber(value, maximumFractionDigits = 0) {
+  return new Intl.NumberFormat('pt-BR', { maximumFractionDigits }).format(Number(value) || 0);
+}
+
+function formatCurrency(value, currency = 'BRL') {
+  return new Intl.NumberFormat('pt-BR', { style: 'currency', currency, maximumFractionDigits: 2 }).format(Number(value) || 0);
+}
+
+function formatPercent(value) {
+  return `${new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 2 }).format(Number(value) || 0)}%`;
+}
+
+function campaignMetric(label, value, note = '') {
+  return `<article class="campaign-metric"><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong>${note ? `<em>${escapeHtml(note)}</em>` : ''}</article>`;
+}
+
+function campaignStatusClass(status) {
+  return String(status || '').toLowerCase().replaceAll('_', '-');
+}
+
+function campaignTable(items = [], currency = 'BRL') {
+  if (!items.length) return '<div class="empty-state">Nenhuma campanha encontrada neste filtro.</div>';
+  return `<table class="data-table"><thead><tr><th>Campanha</th><th>Status</th><th>Investimento</th><th>Alcance</th><th>Impressões</th><th>Cliques</th><th>CTR</th><th>Conversas</th><th>Custo/resultado</th></tr></thead><tbody>${items.map((campaign) => {
+    const metrics = campaign.metrics || {};
+    const costPerResult = metrics.results > 0 ? metrics.spend / metrics.results : null;
+    return `<tr><td data-label="Campanha" class="campaign-name">${escapeHtml(campaign.name)}</td><td data-label="Status"><span class="campaign-status campaign-status-${campaignStatusClass(campaign.effectiveStatus)}">${escapeHtml(friendly(campaign.effectiveStatus))}</span></td><td data-label="Investimento" class="campaign-number">${escapeHtml(formatCurrency(metrics.spend, currency))}</td><td data-label="Alcance" class="campaign-number">${escapeHtml(formatNumber(metrics.reach))}</td><td data-label="Impressões" class="campaign-number">${escapeHtml(formatNumber(metrics.impressions))}</td><td data-label="Cliques" class="campaign-number">${escapeHtml(formatNumber(metrics.clicks))}</td><td data-label="CTR" class="campaign-number">${escapeHtml(formatPercent(metrics.ctr))}</td><td data-label="Conversas" class="campaign-number">${escapeHtml(formatNumber(metrics.results))}</td><td data-label="Custo/resultado" class="campaign-number">${costPerResult == null ? '—' : escapeHtml(formatCurrency(costPerResult, currency))}</td></tr>`;
+  }).join('')}</tbody></table>`;
+}
+
+function campaignChart(rows = [], currency = 'BRL') {
+  if (!rows.length) return '<div class="empty-state">A Meta não retornou atividade diária no período.</div>';
+  const maximum = Math.max(...rows.map((row) => Number(row.spend) || 0), 1);
+  const labelStep = rows.length <= 14 ? 1 : Math.ceil(rows.length / 10);
+  return rows.map((row, index) => {
+    const height = Math.max(2.5, ((Number(row.spend) || 0) / maximum) * 100);
+    const date = new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: '2-digit' }).format(new Date(`${row.date}T12:00:00Z`));
+    const title = `${date}: ${formatCurrency(row.spend, currency)} · ${formatNumber(row.results)} conversa(s)`;
+    const label = index % labelStep === 0 || index === rows.length - 1 ? date : '';
+    return `<div class="campaign-chart-day" title="${escapeHtml(title)}"><div class="campaign-chart-bar" style="--bar-height:${height.toFixed(2)}" aria-label="${escapeHtml(title)}"></div><span>${escapeHtml(label)}</span></div>`;
+  }).join('');
+}
+
+async function loadCampaigns() {
+  const days = byId('campaign-days').value;
+  const status = byId('campaign-status').value;
+  const params = new URLSearchParams({ days });
+  if (status) params.set('status', status);
+  const data = await api(`/api/meta/campaigns?${params}`);
+  byId('campaign-account').textContent = data.accountId || 'Conta ainda não configurada';
+  byId('campaign-setup').classList.toggle('hidden', data.configured);
+  byId('campaign-content').classList.toggle('hidden', !data.configured);
+  if (!data.configured) {
+    byId('campaign-setup').innerHTML = '<h2>Conexão Meta pendente</h2><p>Cadastre o ID da conta e o token de leitura no ambiente protegido do painel. Nenhum dado de campanha é exposto no navegador.</p>';
+    return;
+  }
+  const totals = data.totals || {};
+  const currency = data.currency || 'BRL';
+  byId('campaign-metrics').innerHTML = [
+    campaignMetric('Investimento', formatCurrency(totals.spend, currency), `${days} dias`),
+    campaignMetric('Conversas reportadas', formatNumber(totals.results), 'Conforme atribuição Meta'),
+    campaignMetric('Campanhas ativas', formatNumber(totals.activeCampaigns), `${formatNumber(totals.campaignCount)} no filtro`),
+    campaignMetric('Alcance', formatNumber(totals.reach)),
+    campaignMetric('Impressões', formatNumber(totals.impressions)),
+    campaignMetric('CTR', formatPercent(totals.ctr)),
+  ].join('');
+  byId('campaign-period').textContent = `${data.period.since} — ${data.period.until}`;
+  byId('campaign-updated').textContent = `Atualizado ${new Intl.DateTimeFormat('pt-BR', { hour: '2-digit', minute: '2-digit' }).format(new Date(data.updatedAt))}${data.cached ? ' · cache' : ''}`;
+  byId('campaign-chart').innerHTML = campaignChart(data.daily, currency);
+  byId('campaign-summary').innerHTML = `<div class="campaign-summary-list"><div class="campaign-summary-item"><span>Custo por conversa</span><strong>${totals.costPerResult == null ? '—' : escapeHtml(formatCurrency(totals.costPerResult, currency))}</strong></div><div class="campaign-summary-item"><span>Frequência média</span><strong>${escapeHtml(formatNumber(totals.frequency, 2))}</strong></div><div class="campaign-summary-item"><span>CPC médio</span><strong>${escapeHtml(formatCurrency(totals.cpc, currency))}</strong></div><div class="campaign-summary-item"><span>CPM médio</span><strong>${escapeHtml(formatCurrency(totals.cpm, currency))}</strong></div></div>`;
+  byId('campaign-table').innerHTML = campaignTable(data.campaigns, currency);
+}
+
 const viewConfig = {
   overview: ['OPERAÇÃO EM TEMPO REAL', 'Visão geral', loadOverview],
   conversations: ['HISTÓRICO E REVISÃO', 'Conversas', loadConversations],
   quality: ['MELHORIA CONTROLADA', 'Revisões e FAQs', loadQuality],
   security: ['CONTROLE E AUDITORIA', 'Segurança', loadSecurity],
+  campaigns: ['MÍDIA E AQUISIÇÃO', 'Campanhas Meta', loadCampaigns],
   users: ['ACESSO RESTRITO', 'Usuários e permissões', loadUsers],
 };
 
@@ -309,8 +393,7 @@ byId('login-form').addEventListener('submit', async (event) => {
     state.csrfToken = result.csrfToken;
     formElement.reset();
     resetLoginForm();
-    showApp();
-    await navigate('overview');
+    showPortal();
   } catch (error) {
     byId('login-error').textContent = error.message;
   }
@@ -329,12 +412,25 @@ byId('resend-code').addEventListener('click', async () => {
   }
 });
 
-byId('logout-button').addEventListener('click', async () => {
+async function logout() {
   try { await api('/api/logout', { method: 'POST', body: '{}' }); } catch { /* sessão já encerrada */ }
   showLogin();
+}
+
+byId('logout-button').addEventListener('click', logout);
+byId('portal-logout').addEventListener('click', logout);
+
+byId('portal-view').addEventListener('click', async (event) => {
+  const area = event.target.closest('[data-area]');
+  if (!area) return;
+  area.dataset.state = 'loading';
+  showApp();
+  await navigate(area.dataset.area === 'campaigns' ? 'campaigns' : 'overview');
+  delete area.dataset.state;
 });
 
 byId('main-nav').addEventListener('click', (event) => {
+  if (event.target.closest('[data-portal]')) return showPortal();
   const button = event.target.closest('[data-view]');
   if (button) navigate(button.dataset.view);
 });
@@ -349,14 +445,7 @@ document.addEventListener('click', async (event) => {
     reviewFlag.disabled = true;
     const flagged = reviewFlag.dataset.flagged !== 'true';
     try {
-      await api('/api/conversation-review', {
-        method: 'POST',
-        body: JSON.stringify({
-          conversationId: reviewFlag.dataset.reviewFlag,
-          status: flagged ? 'needs_action' : 'resolved',
-          labels: flagged ? ['needs_human_review'] : [],
-        }),
-      });
+      await api(`/api/conversations/${reviewFlag.dataset.reviewFlag}/review-flag`, { method: 'POST', body: JSON.stringify({ flagged }) });
       toast(flagged ? 'Conversa adicionada à fila de revisão.' : 'Conversa removida da fila de revisão.');
       if (state.view === 'quality') return loadQuality();
       if (state.view === 'conversations') return loadConversations();
@@ -424,6 +513,8 @@ byId('conversation-search').addEventListener('input', () => {
   navigate('conversations', false);
 }));
 
+['campaign-days', 'campaign-status'].forEach((id) => byId(id).addEventListener('change', () => navigate('campaigns')));
+
 byId('refresh-button').addEventListener('click', () => navigate(state.view));
 byId('run-analysis').addEventListener('click', async () => {
   if (!window.confirm('Analisar somente as conversas marcadas? Dados de contato serão removidos e nenhuma FAQ será publicada automaticamente.')) return;
@@ -449,8 +540,7 @@ document.addEventListener('keydown', (event) => { if (event.key === 'Escape') cl
     const result = await api('/api/session');
     state.user = result.user;
     state.csrfToken = csrfFromCookie();
-    showApp();
-    await navigate('overview');
+    showPortal();
   } catch {
     showLogin();
   }
