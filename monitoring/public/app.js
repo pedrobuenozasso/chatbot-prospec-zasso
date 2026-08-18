@@ -291,6 +291,10 @@ function formatCurrency(value, currency = 'BRL') {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency, maximumFractionDigits: 2 }).format(Number(value) || 0);
 }
 
+function formatCompactCurrency(value, currency = 'BRL') {
+  return new Intl.NumberFormat('pt-BR', { style: 'currency', currency, notation: 'compact', maximumFractionDigits: 1 }).format(Number(value) || 0);
+}
+
 function formatPercent(value) {
   return `${new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 2 }).format(Number(value) || 0)}%`;
 }
@@ -312,32 +316,58 @@ function campaignTable(items = [], currency = 'BRL') {
   }).join('')}</tbody></table>`;
 }
 
-function campaignChart(rows = [], currency = 'BRL') {
-  if (!rows.length) return '<div class="empty-state">A Meta não retornou atividade diária no período.</div>';
-  const maximum = Math.max(...rows.map((row) => Number(row.spend) || 0), 1);
-  const labelStep = rows.length <= 14 ? 1 : Math.ceil(rows.length / 10);
-  return rows.map((row, index) => {
-    const height = Math.max(2.5, ((Number(row.spend) || 0) / maximum) * 100);
-    const date = new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: '2-digit' }).format(new Date(`${row.date}T12:00:00Z`));
-    const title = `${date}: ${formatCurrency(row.spend, currency)} · ${formatNumber(row.results)} conversa(s)`;
-    const label = index % labelStep === 0 || index === rows.length - 1 ? date : '';
-    return `<div class="campaign-chart-day" title="${escapeHtml(title)}"><div class="campaign-chart-bar" style="--bar-height:${height.toFixed(2)}" aria-label="${escapeHtml(title)}"></div><span>${escapeHtml(label)}</span></div>`;
-  }).join('');
+function completeCampaignDailyRows(rows = [], period = {}) {
+  if (!rows.length) return [];
+  const validDate = /^\d{4}-\d{2}-\d{2}$/;
+  const since = validDate.test(String(period.since || '')) ? period.since : rows[0]?.date;
+  const until = validDate.test(String(period.until || '')) ? period.until : rows.at(-1)?.date;
+  if (!validDate.test(String(since || '')) || !validDate.test(String(until || ''))) return rows;
+  const values = new Map(rows.map((row) => [row.date, row]));
+  const completed = [];
+  const cursor = new Date(`${since}T00:00:00Z`);
+  const end = new Date(`${until}T00:00:00Z`);
+  while (cursor <= end && completed.length < 92) {
+    const date = cursor.toISOString().slice(0, 10);
+    const row = values.get(date) || {};
+    completed.push({ date, spend: Number(row.spend) || 0, results: Number(row.results) || 0 });
+    cursor.setUTCDate(cursor.getUTCDate() + 1);
+  }
+  return completed;
 }
 
-function campaignDualChart(rows = [], currency = 'BRL') {
+function campaignTimelineChart(rows = [], currency = 'BRL', period = {}) {
   if (!rows.length) return '<div class="empty-state">A Meta não retornou atividade diária no período.</div>';
+  const completedRows = completeCampaignDailyRows(rows, period);
+  const totalSpend = completedRows.reduce((sum, row) => sum + Number(row.spend || 0), 0);
+  const totalResults = completedRows.reduce((sum, row) => sum + Number(row.results || 0), 0);
+  const bestDay = [...completedRows].sort((a, b) => Number(b.spend) - Number(a.spend))[0];
+  const bestDayLabel = new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: '2-digit' }).format(new Date(`${bestDay.date}T12:00:00Z`));
   const maximumSpend = Math.max(...rows.map((row) => Number(row.spend) || 0), 1);
   const maximumResults = Math.max(...rows.map((row) => Number(row.results) || 0), 1);
-  const labelStep = rows.length <= 14 ? 1 : Math.ceil(rows.length / 10);
-  return rows.map((row, index) => {
-    const spendHeight = Math.max(2.5, ((Number(row.spend) || 0) / maximumSpend) * 100);
-    const resultHeight = Math.max(3, ((Number(row.results) || 0) / maximumResults) * 100);
+  const labelStep = completedRows.length <= 14 ? 1 : Math.ceil(completedRows.length / 10);
+  const points = completedRows.map((row, index) => {
+    const x = ((index + 0.5) / completedRows.length) * 1000;
+    const y = 100 - ((Number(row.results) || 0) / maximumResults) * 88;
+    return `${x.toFixed(2)},${y.toFixed(2)}`;
+  }).join(' ');
+  const columns = completedRows.map((row, index) => {
+    const spendHeight = ((Number(row.spend) || 0) / maximumSpend) * 88;
+    const resultHeight = ((Number(row.results) || 0) / maximumResults) * 88;
     const date = new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: '2-digit' }).format(new Date(`${row.date}T12:00:00Z`));
     const title = `${date}: ${formatCurrency(row.spend, currency)} · ${formatNumber(row.results)} conversa(s)`;
-    const label = index % labelStep === 0 || index === rows.length - 1 ? date : '';
-    return `<div class="campaign-chart-day campaign-chart-day-dual" title="${escapeHtml(title)}"><div class="campaign-chart-plot"><div class="campaign-chart-bar" style="--bar-height:${spendHeight.toFixed(2)}" aria-label="${escapeHtml(title)}"></div><i class="campaign-result-dot" style="--result-height:${resultHeight.toFixed(2)}" aria-hidden="true"></i></div><span>${escapeHtml(label)}</span></div>`;
+    const label = index % labelStep === 0 || index === completedRows.length - 1 ? date : '';
+    const costPerResult = Number(row.results) > 0 ? Number(row.spend) / Number(row.results) : null;
+    return `<div class="campaign-chart-column" tabindex="0" role="group" aria-label="${escapeHtml(title)}"><div class="campaign-chart-track"><i class="campaign-chart-bar" style="--bar-height:${spendHeight.toFixed(2)}" aria-hidden="true"></i><i class="campaign-result-dot" style="--result-height:${resultHeight.toFixed(2)}" aria-hidden="true"></i><div class="campaign-chart-tooltip"><strong>${escapeHtml(date)}</strong><span>Investimento <b>${escapeHtml(formatCurrency(row.spend, currency))}</b></span><span>Conversas <b>${escapeHtml(formatNumber(row.results))}</b></span><span>Custo/conversa <b>${costPerResult == null ? '—' : escapeHtml(formatCurrency(costPerResult, currency))}</b></span></div></div><span class="campaign-chart-date">${escapeHtml(label)}</span></div>`;
   }).join('');
+  return `<div class="campaign-chart-report"><div class="campaign-chart-summary"><div><span>Média diária</span><strong>${escapeHtml(formatCurrency(totalSpend / completedRows.length, currency))}</strong></div><div><span>Maior investimento</span><strong>${escapeHtml(bestDayLabel)} · ${escapeHtml(formatCurrency(bestDay.spend, currency))}</strong></div><div><span>Resultado do período</span><strong>${escapeHtml(formatNumber(totalResults))} conversas</strong></div></div><div class="campaign-chart-legend"><span><i class="legend-spend"></i>Investimento diário</span><span><i class="legend-results"></i>Conversas · máximo ${escapeHtml(formatNumber(maximumResults))}/dia</span><em>Passe o cursor ou toque em um dia para ver detalhes. Arraste para navegar.</em></div><div class="campaign-timeline-scroll"><div class="campaign-timeline" style="--chart-days:${completedRows.length}"><div class="campaign-chart-axis" aria-hidden="true"><span>${escapeHtml(formatCompactCurrency(maximumSpend, currency))}</span><span>${escapeHtml(formatCompactCurrency(maximumSpend / 2, currency))}</span><span>${escapeHtml(formatCompactCurrency(0, currency))}</span></div><div class="campaign-chart-data"><div class="campaign-chart-grid" aria-hidden="true"><i></i><i></i><i></i></div><svg class="campaign-results-line" viewBox="0 0 1000 100" preserveAspectRatio="none" aria-hidden="true"><polyline points="${points}" vector-effect="non-scaling-stroke"/></svg><div class="campaign-chart-columns">${columns}</div></div></div></div></div>`;
+}
+
+function campaignChart(rows = [], currency = 'BRL', period = {}) {
+  return campaignTimelineChart(rows, currency, period);
+}
+
+function campaignDualChart(rows = [], currency = 'BRL', period = {}) {
+  return campaignTimelineChart(rows, currency, period);
 }
 
 function campaignSpendDistribution(items = [], currency = 'BRL') {
@@ -418,8 +448,8 @@ function renderCampaignScreens(data, days) {
   byId('campaign-period').textContent = period;
   byId('campaign-overview-period').textContent = period;
   byId('campaign-updated').textContent = `Atualizado ${new Intl.DateTimeFormat('pt-BR', { hour: '2-digit', minute: '2-digit' }).format(new Date(data.updatedAt))}${data.cached ? ' · cache' : ''}`;
-  byId('campaign-overview-chart').innerHTML = campaignChart(data.daily, currency);
-  byId('campaign-chart').innerHTML = campaignDualChart(data.daily, currency);
+  byId('campaign-overview-chart').innerHTML = campaignChart(data.daily, currency, data.period);
+  byId('campaign-chart').innerHTML = campaignDualChart(data.daily, currency, data.period);
   byId('campaign-spend-distribution').innerHTML = campaignSpendDistribution(campaigns, currency);
   byId('campaign-highlights').innerHTML = campaignHighlights(campaigns, currency);
   byId('campaign-funnel').innerHTML = campaignFunnel(totals);
