@@ -20,7 +20,7 @@ test('painel não depende de scripts externos e declara noindex', async () => {
 test('identidade visual utiliza somente imagens locais da Zasso', async () => {
   const assets = await Promise.all([
     'zasso-logo-black.png', 'zasso-logo-white.png', 'zasso-logo-round-black.png', 'zasso-symbol-favicon.png',
-    'zasso-symbol-touch-icon.png', 'zasso-e-coffee.png', 'zasso-raiden.png',
+    'zasso-symbol-touch-icon.png', 'zasso-e-coffee.png', 'zasso-raiden.png', 'zasso-headquarters-machines.png',
   ].map((name) => readFile(new URL(`../monitoring/public/assets/${name}`, import.meta.url))));
   assert.ok(assets.every((asset) => asset.length > 1000));
 });
