@@ -31,8 +31,19 @@ export function newConversation(contact = {}) {
     handoffStatus: 'not_ready',
     entrySource: { type: 'unknown' },
     initialInterest: '',
+    interests: [],
+    qualificationAttempts: {},
     contact: { firstName: contact.firstName || '' },
-    qualification: { segment: null, region: null, crop: null, area: null, areaHectares: null, urbanProfile: null },
+    qualification: {
+      segment: null,
+      region: null,
+      crop: null,
+      area: null,
+      areaHectares: null,
+      areaConfidence: null,
+      urbanProfile: null,
+      urbanScale: null,
+    },
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   };
@@ -74,6 +85,25 @@ function sanitizedState(state) {
     .replace(/\s+/g, ' ')
     .trim()
     .slice(0, 180);
+  state.interests = [...new Set((Array.isArray(state.interests) ? state.interests : [])
+    .map((value) => String(value || '')
+      .replace(/[\p{Cc}\p{Cf}\p{Zl}\p{Zp}]+/gu, ' ')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .slice(0, 180))
+    .filter(Boolean))].slice(-5);
+  state.qualificationAttempts = Object.fromEntries(
+    Object.entries(state.qualificationAttempts || {})
+      .filter(([stage, attempts]) => Object.values(STAGES).includes(stage) && Number.isInteger(attempts))
+      .map(([stage, attempts]) => [stage, Math.max(0, Math.min(attempts, 3))]),
+  );
+  state.qualification ||= {};
+  state.qualification.areaConfidence = state.qualification.areaConfidence || null;
+  state.qualification.urbanScale = String(state.qualification.urbanScale || '')
+    .replace(/[\p{Cc}\p{Cf}\p{Zl}\p{Zp}]+/gu, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 180) || null;
   return state;
 }
 
@@ -190,7 +220,7 @@ function detectSegment(answer) {
 
 function detectUrbanProfile(answer) {
   const value = normalize(answer);
-  if (/(prefeitura|municip|municipalit|kommune|city council|local authority)/.test(value)) return 'prefeitura';
+  if (/(prefeitura|municip|municipalit|kommune|gemeinde|city council|local authority|junta de freguesia|camara municipal|ayuntamiento)/.test(value)) return 'prefeitura';
   if (/(prestador|prestataire|dienstleister|service provider|servic|contratad)/.test(value)) return 'prestador_de_servicos';
   if (/(outro|otro|autre|ander|empresa|entreprise|unternehmen|company|particular|condominio)/.test(value)) return 'outro';
   return null;
@@ -208,7 +238,7 @@ function acknowledgement(stage, language) {
 }
 
 export function advanceQualification(state, answer, language = state.language || 'pt-BR') {
-  const locale = normalizeLanguage(language);
+  let locale = normalizeLanguage(language);
   const value = answer.trim();
   if (!value) return { state, nextQuestion: qualificationQuestion(state.stage, locale), acknowledgement: '', completed: false };
   const answeredStage = state.stage;
@@ -222,6 +252,10 @@ export function advanceQualification(state, answer, language = state.language ||
     state.stage = STAGES.REGION;
   } else if (state.stage === STAGES.REGION) {
     state.qualification.region = value;
+    if (state.language === 'pt-BR' && /\b(portugal|portuguesa?|lisboa|porto|braga|coimbra|aveiro|faro|setubal|leiria|viseu)\b/i.test(normalize(value))) {
+      state.language = 'pt-PT';
+      locale = 'pt-PT';
+    }
     state.stage = state.qualification.segment === 'agro' ? STAGES.AGRO_CROP : STAGES.URBAN_PROFILE;
   } else if (state.stage === STAGES.AGRO_CROP) {
     state.qualification.crop = value;
@@ -233,6 +267,7 @@ export function advanceQualification(state, answer, language = state.language ||
     }
     state.qualification.area = formatAreaHectares(parsedArea.areaHectares, locale);
     state.qualification.areaHectares = parsedArea.areaHectares;
+    state.qualification.areaConfidence = parsedArea.confidence;
     state.stage = STAGES.COMPLETED;
   } else if (state.stage === STAGES.URBAN_PROFILE) {
     const profile = detectUrbanProfile(value);

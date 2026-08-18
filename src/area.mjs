@@ -15,7 +15,14 @@ const AREA_UNITS = Object.freeze([
   {
     kind: 'hectare',
     factor: 1,
-    pattern: String.raw`(?:ha|hectares?|hectareas?|hektar(?:e|en)?)`,
+    // "hc" e "hectaria" aparecem com frequência em mensagens digitadas no
+    // celular. São aceitos como variações inequívocas de hectare.
+    pattern: String.raw`(?:ha|hc|hectares?|hectareas?|hectarias?|hektar(?:e|en)?)`,
+  },
+  {
+    kind: 'are',
+    factor: 0.01,
+    pattern: String.raw`(?:areas?|ares?)`,
   },
   {
     kind: 'acre',
@@ -73,8 +80,11 @@ export function parseAreaAnswer(answer, language = 'pt-BR') {
       if (isRateContext(text, match.index + match[0].length)) continue;
       const value = localizedNumber(match[1], language);
       const areaHectares = value === null ? null : value * unit.factor;
-      if (areaHectares && areaHectares <= 10_000_000) {
-        return { areaHectares, sourceUnit: unit.kind };
+      // Valores acima de 100 mil hectares são possíveis no mundo real, mas
+      // são suficientemente excepcionais para exigir confirmação humana. O
+      // bot nunca deve transformar um possível valor em m² em 420.000 ha.
+      if (areaHectares && areaHectares <= 100_000) {
+        return { areaHectares, sourceUnit: unit.kind, confidence: 'high' };
       }
     }
   }
@@ -83,8 +93,11 @@ export function parseAreaAnswer(answer, language = 'pt-BR') {
   // pelo número continua sendo interpretada como hectares.
   if (/^\d[\d.,\s]*\d$|^\d$/u.test(text)) {
     const areaHectares = localizedNumber(text, language);
-    if (areaHectares && areaHectares <= 10_000_000) {
-      return { areaHectares, sourceUnit: 'implicit_hectare' };
+    // Número isolado é aceito como hectare porque essa é a unidade solicitada
+    // pela pergunta atual. Acima deste limite, a unidade precisa ser
+    // confirmada explicitamente para impedir encaminhamentos absurdos.
+    if (areaHectares && areaHectares <= 100_000) {
+      return { areaHectares, sourceUnit: 'implicit_hectare', confidence: 'high' };
     }
   }
 

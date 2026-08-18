@@ -30,7 +30,9 @@ export function localWeekday(now = new Date(), timezone = config.weekendHandoffT
 export function shouldDeferCommercialHandoff({
   channel = 'whatsapp',
   now = new Date(),
-  enabled = config.weekendHandoffEnabled,
+  // O bloqueio de sexta/sábado é uma regra de segurança operacional e não
+  // depende da flag do piloto de template de domingo.
+  enabled = true,
 } = {}) {
   return enabled
     && channel === 'whatsapp'

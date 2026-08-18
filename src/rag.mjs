@@ -384,7 +384,7 @@ export function localQualificationAssessment(stage, text) {
       : { kind: 'invalid' };
   }
   if (stage === 'urban_profile') {
-    return /(prefeitura|municip|municipalit|kommune|city council|local authority|prestador|prestataire|dienstleister|service provider|servic|contratad|outro|otro|autre|ander|empresa|entreprise|unternehmen|company|particular|condominio)/.test(normalized)
+    return /(prefeitura|municip|municipalit|kommune|gemeinde|city council|local authority|junta de freguesia|camara municipal|ayuntamiento|prestador|prestataire|dienstleister|service provider|servic|contratad|outro|otro|autre|ander|empresa|entreprise|unternehmen|company|particular|condominio)/.test(normalized)
       ? { kind: 'answer' }
       : { kind: 'invalid' };
   }
@@ -463,6 +463,7 @@ export function detectLanguage(question, fallbackLanguage = 'pt-BR') {
   }));
   scores.sort((left, right) => right.score - left.score);
   if (!scores[0]?.score || (scores[1] && scores[0].score === scores[1].score)) return normalizeLanguage(fallbackLanguage);
+  if (normalizeLanguage(fallbackLanguage) === 'pt-PT' && scores[0].language === 'pt-BR') return 'pt-PT';
   return scores[0].language;
 }
 
@@ -523,7 +524,11 @@ export function truncateAnswer(text) {
 function qualificationFallback(question, language) {
   const normalized = normalizedSecurityText(question);
   const isPricingQuestion = /\b(preco|valor|orcamento|quanto custa|investimento|price|cost|quote|pricing|preis|kosten|angebot|prix|cout|devis|precio|coste|cotizacion)\b/i.test(normalized);
-  return t(language, isPricingQuestion ? 'pricing' : 'unknown');
+  if (isPricingQuestion) return t(language, 'pricing');
+  const isGenericInformationRequest = /^(ola |hello |hallo |bonjour |hola )?(posso|gostaria|quero|queria|i would like|ich mochte|je souhaite|je voudrais|me gustaria|quiero).{0,35}(mais |more |weitere |plus d |mas )?informa/.test(normalized);
+  if (isGenericInformationRequest) return t(language, 'genericInformation');
+  const isCommercialDetail = /\b(demo|demonstracao|demonstration|demostracion|vorfuhrung|importador|importer|importateur|distribuidor|distributor|revendedor|representante|vender|comprar|vende|maquina|machine|maschinen|maquina|compatib|massey|modelo|workshop|taller|oficina)\b/i.test(normalized);
+  return t(language, isCommercialDetail ? 'commercialUnknown' : 'unknown');
 }
 
 // O modelo às vezes tenta ser excessivamente cordial e repete uma saudação a

@@ -1,4 +1,4 @@
-export const SUPPORTED_LANGUAGES = Object.freeze(['pt-BR', 'en-US', 'de-DE', 'fr-FR', 'es-ES']);
+export const SUPPORTED_LANGUAGES = Object.freeze(['pt-BR', 'pt-PT', 'en-US', 'de-DE', 'fr-FR', 'es-ES']);
 
 const MESSAGES = Object.freeze({
   'pt-BR': {
@@ -26,6 +26,7 @@ const MESSAGES = Object.freeze({
     commercialSummaryArea: 'Área',
     commercialSummaryUrbanProfile: 'Perfil',
     commercialSummaryInterest: 'Interesse',
+    commercialSummaryScale: 'Porte/contexto informado',
     commercialSummaryProtocol: 'Protocolo',
     summarySegmentAgro: 'Agronegócio',
     summarySegmentUrban: 'Área urbana',
@@ -40,6 +41,10 @@ const MESSAGES = Object.freeze({
     segmentClarification: 'Só para eu direcionar certinho: sua atividade é mais ligada ao agronegócio ou a uma área urbana?',
     areaClarification: 'Para eu registrar corretamente, qual é o tamanho aproximado da área em hectares?',
     urbanProfileClarification: 'Para eu registrar corretamente, você atua como prefeitura, prestador de serviços ou outro tipo de operação?',
+    qualificationSecondTry: 'Não consegui registrar essa resposta. Você pode responder com uma destas opções: {examples}',
+    qualificationFrustration: 'Desculpe pela repetição. Vou reformular para ficar mais fácil:',
+    humanHandoff: 'Claro. Já organizei o que você informou para continuar diretamente com uma pessoa da equipe.',
+    partialHandoff: 'Vou encaminhar o que já temos, sem fazer você repetir as mesmas informações.',
     ackSegment: 'Entendi.',
     ackRegion: 'Perfeito.',
     ackCrop: 'Certo.',
@@ -48,6 +53,8 @@ const MESSAGES = Object.freeze({
     injectionRefusal: 'Posso ajudar com informações públicas sobre a Zasso e a tecnologia Electroherb. O que você gostaria de saber?',
     outputBlocked: 'Não consegui confirmar essa resposta com segurança. Posso seguir com outra dúvida ou encaminhar esse ponto para a equipe da Zasso.',
     unknown: 'Para te orientar melhor, preciso entender um pouco mais sobre a sua operação e o que você precisa.',
+    commercialUnknown: 'Esse detalhe precisa ser confirmado pelo time da Zasso para a sua região e aplicação. Vou registrar seu interesse e seguimos com a triagem.',
+    genericInformation: 'A Zasso desenvolve tecnologia de controle elétrico de plantas indesejadas para aplicações agrícolas e urbanas, sem aplicar herbicida químico na planta.',
     pricing: 'O investimento varia conforme a aplicação, o porte da operação e a configuração necessária. Para te orientar melhor, preciso entender um pouco mais sobre a sua necessidade.',
     shortInput: 'Pode me mandar sua pergunta em uma mensagem mais curta? Consigo analisar textos de até {max} caracteres por vez.',
     generationFailure: 'Não foi possível gerar uma resposta agora.',
@@ -80,6 +87,7 @@ const MESSAGES = Object.freeze({
     commercialSummaryArea: 'Area',
     commercialSummaryUrbanProfile: 'Profile',
     commercialSummaryInterest: 'Interest',
+    commercialSummaryScale: 'Scale/context provided',
     commercialSummaryProtocol: 'Reference',
     summarySegmentAgro: 'Agriculture',
     summarySegmentUrban: 'Urban area',
@@ -94,6 +102,10 @@ const MESSAGES = Object.freeze({
     segmentClarification: 'Just so I can direct you correctly: is your activity mainly agricultural or urban?',
     areaClarification: 'To record this correctly, what is the approximate area in hectares?',
     urbanProfileClarification: 'To record this correctly, do you work for a municipality, as a service provider, or in another operation?',
+    qualificationSecondTry: 'I couldn’t record that answer. Please choose one of these options: {examples}',
+    qualificationFrustration: 'Sorry about the repetition. Let me rephrase it more clearly:',
+    humanHandoff: 'Of course. I’ve organized what you shared so you can continue directly with a member of our team.',
+    partialHandoff: 'I’ll pass along what we already have, so you won’t need to repeat the same information.',
     ackSegment: 'Got it.',
     ackRegion: 'Perfect.',
     ackCrop: 'Understood.',
@@ -102,6 +114,8 @@ const MESSAGES = Object.freeze({
     injectionRefusal: 'I can help with public information about Zasso and Electroherb technology. What would you like to know?',
     outputBlocked: 'I couldn’t verify that answer safely. I can help with another question or leave this point for the Zasso team.',
     unknown: 'To guide you properly, I need to understand a little more about your operation and what you need.',
+    commercialUnknown: 'That detail needs to be confirmed by the Zasso team for your region and application. I’ll record your interest and continue the intake.',
+    genericInformation: 'Zasso develops electrical vegetation-control technology for agricultural and urban applications, without applying chemical herbicide to the plant.',
     pricing: 'The investment varies with the application, operation size and required configuration. To guide you properly, I need to understand a little more about your needs.',
     shortInput: 'Could you send your question in a shorter message? I can process up to {max} characters at a time.',
     generationFailure: 'I couldn’t generate a response right now.',
@@ -134,6 +148,7 @@ const MESSAGES = Object.freeze({
     commercialSummaryArea: 'Fläche',
     commercialSummaryUrbanProfile: 'Profil',
     commercialSummaryInterest: 'Interesse',
+    commercialSummaryScale: 'Genannte Größe/Kontext',
     commercialSummaryProtocol: 'Vorgangsnummer',
     summarySegmentAgro: 'Landwirtschaft',
     summarySegmentUrban: 'Städtischer Bereich',
@@ -148,6 +163,10 @@ const MESSAGES = Object.freeze({
     segmentClarification: 'Nur damit ich Sie richtig einordne: Ist Ihre Tätigkeit eher landwirtschaftlich oder städtisch?',
     areaClarification: 'Wie groß ist die Fläche ungefähr in Hektar?',
     urbanProfileClarification: 'Arbeiten Sie für eine Kommune, als Dienstleister oder in einem anderen Betrieb?',
+    qualificationSecondTry: 'Ich konnte diese Antwort nicht erfassen. Bitte wählen Sie eine dieser Optionen: {examples}',
+    qualificationFrustration: 'Entschuldigung für die Wiederholung. Ich formuliere es klarer:',
+    humanHandoff: 'Gern. Ich habe Ihre bisherigen Angaben zusammengestellt, damit Sie direkt mit einer Person aus unserem Team fortfahren können.',
+    partialHandoff: 'Ich leite die vorhandenen Angaben weiter, damit Sie nichts wiederholen müssen.',
     ackSegment: 'Verstanden.',
     ackRegion: 'Perfekt.',
     ackCrop: 'Alles klar.',
@@ -156,6 +175,8 @@ const MESSAGES = Object.freeze({
     injectionRefusal: 'Ich kann mit öffentlichen Informationen über Zasso und die Electroherb-Technologie helfen. Was möchten Sie wissen?',
     outputBlocked: 'Ich konnte diese Antwort nicht sicher bestätigen. Ich kann bei einer anderen Frage helfen oder diesen Punkt an das Zasso-Team weitergeben.',
     unknown: 'Damit ich Sie passend beraten kann, muss ich noch etwas mehr über Ihren Betrieb und Ihren Bedarf erfahren.',
+    commercialUnknown: 'Dieses Detail muss das Zasso-Team für Ihre Region und Anwendung bestätigen. Ich notiere Ihr Interesse und setze die Erfassung fort.',
+    genericInformation: 'Zasso entwickelt elektrische Vegetationskontrolle für landwirtschaftliche und städtische Anwendungen, ohne chemische Herbizide auf die Pflanze aufzubringen.',
     pricing: 'Die Investition hängt von Anwendung, Betriebsgröße und erforderlicher Konfiguration ab. Für eine passende Beratung muss ich Ihren Bedarf etwas genauer verstehen.',
     shortInput: 'Könnten Sie Ihre Frage bitte kürzer senden? Ich kann bis zu {max} Zeichen pro Nachricht verarbeiten.',
     generationFailure: 'Ich konnte gerade keine Antwort erstellen.',
@@ -188,6 +209,7 @@ const MESSAGES = Object.freeze({
     commercialSummaryArea: 'Superficie',
     commercialSummaryUrbanProfile: 'Profil',
     commercialSummaryInterest: 'Besoin',
+    commercialSummaryScale: 'Taille/contexte indiqué',
     commercialSummaryProtocol: 'Référence',
     summarySegmentAgro: 'Agriculture',
     summarySegmentUrban: 'Zone urbaine',
@@ -202,6 +224,10 @@ const MESSAGES = Object.freeze({
     segmentClarification: 'Juste pour bien vous orienter : votre activité est-elle plutôt agricole ou urbaine ?',
     areaClarification: 'Pour bien l’enregistrer, quelle est la superficie approximative en hectares ?',
     urbanProfileClarification: 'Travaillez-vous pour une municipalité, comme prestataire de services ou dans un autre type de structure ?',
+    qualificationSecondTry: 'Je n’ai pas pu enregistrer cette réponse. Choisissez l’une de ces options : {examples}',
+    qualificationFrustration: 'Désolé pour la répétition. Je vais reformuler plus clairement :',
+    humanHandoff: 'Bien sûr. J’ai organisé les informations déjà fournies afin que vous puissiez poursuivre directement avec une personne de notre équipe.',
+    partialHandoff: 'Je transmets les informations déjà recueillies afin que vous n’ayez pas à les répéter.',
     ackSegment: 'Je comprends.',
     ackRegion: 'Parfait.',
     ackCrop: 'Très bien.',
@@ -210,6 +236,8 @@ const MESSAGES = Object.freeze({
     injectionRefusal: 'Je peux vous aider avec des informations publiques sur Zasso et la technologie Electroherb. Que souhaitez-vous savoir ?',
     outputBlocked: 'Je n’ai pas pu vérifier cette réponse en toute sécurité. Je peux répondre à une autre question ou transmettre ce point à l’équipe Zasso.',
     unknown: 'Pour bien vous orienter, j’ai besoin d’en savoir un peu plus sur votre activité et votre besoin.',
+    commercialUnknown: 'Ce point doit être confirmé par l’équipe Zasso pour votre région et votre application. Je note votre intérêt et poursuis la qualification.',
+    genericInformation: 'Zasso développe une technologie de contrôle électrique de la végétation pour les applications agricoles et urbaines, sans appliquer d’herbicide chimique sur la plante.',
     pricing: 'L’investissement dépend de l’application, de la taille de l’opération et de la configuration nécessaire. Pour bien vous orienter, j’ai besoin de mieux comprendre votre besoin.',
     shortInput: 'Pouvez-vous envoyer une question plus courte ? Je peux traiter jusqu’à {max} caractères par message.',
     generationFailure: 'Je n’ai pas pu générer de réponse pour le moment.',
@@ -242,6 +270,7 @@ const MESSAGES = Object.freeze({
     commercialSummaryArea: 'Área',
     commercialSummaryUrbanProfile: 'Perfil',
     commercialSummaryInterest: 'Interés',
+    commercialSummaryScale: 'Dimensión/contexto indicado',
     commercialSummaryProtocol: 'Protocolo',
     summarySegmentAgro: 'Agricultura',
     summarySegmentUrban: 'Área urbana',
@@ -256,6 +285,10 @@ const MESSAGES = Object.freeze({
     segmentClarification: 'Solo para orientarte correctamente: ¿tu actividad es principalmente agrícola o urbana?',
     areaClarification: 'Para registrarlo correctamente, ¿cuál es el tamaño aproximado del área en hectáreas?',
     urbanProfileClarification: '¿Trabajas para un municipio, como prestador de servicios o en otro tipo de operación?',
+    qualificationSecondTry: 'No pude registrar esa respuesta. Elige una de estas opciones: {examples}',
+    qualificationFrustration: 'Perdona la repetición. Voy a plantearlo de forma más clara:',
+    humanHandoff: 'Claro. Ya organicé lo que compartiste para que puedas continuar directamente con una persona del equipo.',
+    partialHandoff: 'Voy a enviar la información que ya tenemos para que no tengas que repetirla.',
     ackSegment: 'Entiendo.',
     ackRegion: 'Perfecto.',
     ackCrop: 'De acuerdo.',
@@ -264,6 +297,8 @@ const MESSAGES = Object.freeze({
     injectionRefusal: 'Puedo ayudarte con información pública sobre Zasso y la tecnología Electroherb. ¿Qué te gustaría saber?',
     outputBlocked: 'No pude verificar esa respuesta de forma segura. Puedo ayudarte con otra pregunta o dejar este punto al equipo de Zasso.',
     unknown: 'Para orientarte mejor, necesito saber un poco más sobre tu operación y lo que necesitas.',
+    commercialUnknown: 'Ese detalle debe confirmarlo el equipo de Zasso para tu región y aplicación. Registraré tu interés y continuaré con la clasificación.',
+    genericInformation: 'Zasso desarrolla tecnología de control eléctrico de vegetación para aplicaciones agrícolas y urbanas, sin aplicar herbicida químico sobre la planta.',
     pricing: 'La inversión varía según la aplicación, el tamaño de la operación y la configuración necesaria. Para orientarte mejor, necesito conocer un poco más tu necesidad.',
     shortInput: '¿Puedes enviar tu pregunta en un mensaje más corto? Puedo procesar hasta {max} caracteres cada vez.',
     generationFailure: 'No pude generar una respuesta en este momento.',
@@ -273,8 +308,23 @@ const MESSAGES = Object.freeze({
   },
 });
 
+const PT_PT_OVERRIDES = Object.freeze({
+  languageName: 'European Portuguese',
+  commercialCta: 'Toque no botão abaixo para continuar diretamente com a nossa equipa comercial. A mensagem já estará preenchida:',
+  postHandoffReminder: 'Para continuar, fale com a nossa equipa comercial através do botão que enviei acima. A equipa já terá o resumo do seu atendimento.',
+  commercialPrefillIntro: 'Olá! Vim pelo atendimento virtual da Zasso e gostaria de falar com a equipa comercial.',
+  summaryUrbanMunicipality: 'Câmara municipal/junta de freguesia',
+  urbanProfileQuestion: 'Atua numa câmara municipal ou junta de freguesia, como prestador de serviços ou noutro tipo de operação?',
+  urbanProfileClarification: 'Para registar corretamente, atua numa câmara municipal ou junta de freguesia, como prestador de serviços ou noutro tipo de operação?',
+  humanHandoff: 'Claro. Já organizei o que indicou para continuar diretamente com uma pessoa da nossa equipa.',
+  partialHandoff: 'Vou encaminhar o que já temos, para não ter de repetir as mesmas informações.',
+  completed: 'Já organizei as suas informações para não ter de explicar tudo novamente.',
+  weekendDeferred: 'A nossa equipa comercial retoma o atendimento na segunda-feira. Já deixei as suas informações organizadas para não ter de explicar tudo novamente.',
+});
+
 export function normalizeLanguage(language = 'pt-BR') {
   const normalized = String(language).toLocaleLowerCase();
+  if (normalized === 'pt-pt' || normalized.startsWith('pt_pt')) return 'pt-PT';
   if (normalized.startsWith('en')) return 'en-US';
   if (normalized.startsWith('de')) return 'de-DE';
   if (normalized.startsWith('fr')) return 'fr-FR';
@@ -284,7 +334,10 @@ export function normalizeLanguage(language = 'pt-BR') {
 
 export function t(language, key, variables = {}) {
   const locale = normalizeLanguage(language);
-  let value = MESSAGES[locale]?.[key] ?? MESSAGES['pt-BR'][key] ?? key;
+  let value = (locale === 'pt-PT' ? PT_PT_OVERRIDES[key] : undefined)
+    ?? MESSAGES[locale]?.[key]
+    ?? MESSAGES['pt-BR'][key]
+    ?? key;
   for (const [name, replacement] of Object.entries(variables)) {
     value = value.replaceAll(`{${name}}`, String(replacement));
   }

@@ -38,6 +38,35 @@ Na etapa de área, o lead também pode responder somente `80`, `100,5` ou outro
 número positivo. Como a pergunta já estabelece hectares, o bot acrescenta a
 unidade no resumo comercial sem obrigar a pessoa a digitá-la.
 
+## Regras de qualidade derivadas das revisões reais
+
+- Órgãos públicos internacionais são normalizados como perfil público:
+  `junta de freguesia`, `câmara municipal`, `ayuntamiento`, `municipalité` e
+  `Gemeinde`.
+- Um pedido explícito para falar com uma pessoa interrompe a qualificação e
+  gera um encaminhamento parcial com somente os dados já confirmados.
+- Depois de duas respostas inválidas para o mesmo campo, o bot reformula com
+  exemplos. Na terceira, interrompe o ciclo e oferece o encaminhamento parcial.
+- Perguntas comerciais feitas no meio do fluxo são respondidas pela base
+  aprovada ou recebem um limite seguro; o interesse é registrado e a pergunta
+  de qualificação pendente é retomada.
+- `hc`, `hectaria`, `are/area` e unidades métricas são normalizadas. Um número
+  isolado acima de 100.000 não é aceito como hectare sem esclarecimento.
+- Todo encaminhamento agro exige área numérica de alta confiança; um valor
+  contraditório ou de baixa confiança nunca gera o CTA comercial.
+- Informações espontâneas de porte urbano, como número de lotes ou alqueires,
+  são preservadas no resumo sem criar uma nova pergunta obrigatória.
+- Ao identificar Portugal pela região, o bot preserva o português e passa a
+  usar termos locais como `equipa comercial`, `câmara municipal` e `junta de
+  freguesia`.
+- O CTA comercial de WhatsApp é bloqueado às sextas e aos sábados como regra
+  operacional independente. Essa proteção não depende do antigo piloto de
+  template de domingo.
+
+Essas regras são cobertas por cenários em
+`test/reviewed-conversations-regression.test.mjs`, além da regressão geral do
+projeto.
+
 Ligações recebidas não alteram o estágio da conversa. Na integração ativa, a
 Evolution rejeita a chamada e envia uma mensagem curta pedindo que o lead
 escreva no chat. Isso é feito nativamente porque chamadas podem chegar com

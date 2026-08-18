@@ -7,7 +7,9 @@ import { normalizeLanguage, t } from './i18n.mjs';
 const outboxPath = config.handoffOutboxPath;
 
 function displaySegment(segment) {
-  return segment === 'agro' ? 'Agronegócio' : 'Urbano';
+  if (segment === 'agro') return 'Agronegócio';
+  if (segment === 'urban') return 'Urbano';
+  return 'Não informado';
 }
 
 function displayUrbanProfile(profile) {
@@ -28,9 +30,9 @@ function safeLine(value, maximumLength = 180) {
 }
 
 function localizedSegment(segment, language) {
-  return segment === 'agro'
-    ? t(language, 'summarySegmentAgro')
-    : t(language, 'summarySegmentUrban');
+  if (segment === 'agro') return t(language, 'summarySegmentAgro');
+  if (segment === 'urban') return t(language, 'summarySegmentUrban');
+  return '';
 }
 
 function localizedUrbanProfile(profile, language) {
@@ -45,11 +47,17 @@ function localizedUrbanProfile(profile, language) {
 function commercialMessage(state) {
   const language = normalizeLanguage(state.language);
   const qualification = state.qualification || {};
+  const interests = [...new Set([
+    state.initialInterest,
+    ...(Array.isArray(state.interests) ? state.interests : []),
+  ].map((value) => safeLine(value)).filter(Boolean))].join(' | ');
   const lines = [
     t(language, 'commercialPrefillIntro'),
     '',
     t(language, 'commercialSummaryTitle'),
-    `• ${t(language, 'commercialSummarySegment')}: ${localizedSegment(qualification.segment, language)}`,
+    qualification.segment
+      ? `• ${t(language, 'commercialSummarySegment')}: ${localizedSegment(qualification.segment, language)}`
+      : null,
     qualification.region
       ? `• ${t(language, 'commercialSummaryRegion')}: ${safeLine(qualification.region)}`
       : null,
@@ -62,8 +70,11 @@ function commercialMessage(state) {
     qualification.segment === 'urban' && qualification.urbanProfile
       ? `• ${t(language, 'commercialSummaryUrbanProfile')}: ${localizedUrbanProfile(qualification.urbanProfile, language)}`
       : null,
-    state.initialInterest
-      ? `• ${t(language, 'commercialSummaryInterest')}: ${safeLine(state.initialInterest)}`
+    qualification.segment === 'urban' && qualification.urbanScale
+      ? `• ${t(language, 'commercialSummaryScale')}: ${safeLine(qualification.urbanScale)}`
+      : null,
+    interests
+      ? `• ${t(language, 'commercialSummaryInterest')}: ${safeLine(interests)}`
       : null,
     '',
     `${t(language, 'commercialSummaryProtocol')}: ${safeLine(state.handoffProtocol, 40)}`,
@@ -91,6 +102,10 @@ export function commercialHandoff(state) {
 // lidos do banco e aparecerão na fila de atendimento do comercial.
 export function qualifiedLeadSummary(state) {
   const { qualification, contact } = state;
+  const interests = [...new Set([
+    state.initialInterest,
+    ...(Array.isArray(state.interests) ? state.interests : []),
+  ].map((value) => safeLine(value)).filter(Boolean))].join(' | ');
   return {
     protocol: state.handoffProtocol || null,
     contactName: contact.firstName || 'Lead',
@@ -100,7 +115,9 @@ export function qualifiedLeadSummary(state) {
     area: qualification.segment === 'agro' ? qualification.area : null,
     areaHectares: qualification.segment === 'agro' ? qualification.areaHectares : null,
     urbanProfile: qualification.segment === 'urban' ? displayUrbanProfile(qualification.urbanProfile) : null,
-    interest: safeLine(state.initialInterest),
+    urbanScale: qualification.segment === 'urban' ? safeLine(qualification.urbanScale) || null : null,
+    interest: safeLine(interests),
+    partial: state.partialHandoff === true,
   };
 }
 
