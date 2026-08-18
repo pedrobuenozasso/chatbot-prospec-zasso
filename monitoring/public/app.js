@@ -197,9 +197,11 @@ async function loadConversations() {
   const search = byId('conversation-search').value.trim();
   const status = byId('conversation-status').value;
   const segment = byId('conversation-segment').value;
+  const market = byId('conversation-market').value;
   if (search) params.set('search', search);
   if (status) params.set('status', status);
   if (segment) params.set('segment', segment);
+  if (market) params.set('market', market);
   const result = await api(`/api/conversations?${params}`);
   byId('conversation-total').textContent = `${result.total} conversa${result.total === 1 ? '' : 's'}`;
   byId('conversation-table').innerHTML = conversationTable(result.items);
@@ -684,7 +686,7 @@ byId('conversation-search').addEventListener('input', () => {
   clearTimeout(searchTimer);
   searchTimer = setTimeout(() => { state.conversationPage = 1; navigate('conversations', false); }, 350);
 });
-['conversation-status', 'conversation-segment'].forEach((id) => byId(id).addEventListener('change', () => {
+['conversation-status', 'conversation-segment', 'conversation-market'].forEach((id) => byId(id).addEventListener('change', () => {
   state.conversationPage = 1;
   navigate('conversations', false);
 }));

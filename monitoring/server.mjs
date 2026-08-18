@@ -216,6 +216,7 @@ function pagination(searchParams) {
     limit: Math.max(10, Math.min(100, Number(searchParams.get('limit')) || 30)),
     status: clean(searchParams.get('status'), 32),
     segment: clean(searchParams.get('segment'), 24),
+    market: clean(searchParams.get('market'), 8).toLowerCase(),
     search: clean(searchParams.get('search'), 120),
     reviewStatus: clean(searchParams.get('reviewStatus'), 24),
   };

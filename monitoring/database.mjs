@@ -319,12 +319,24 @@ export async function overview() {
   };
 }
 
-export async function listConversations({ page = 1, limit = 30, status = '', segment = '', search = '', reviewStatus = '' }) {
+export async function listConversations({ page = 1, limit = 30, status = '', segment = '', market = '', search = '', reviewStatus = '' }) {
   const offset = (page - 1) * limit;
   const values = [];
   const filters = [];
   if (status) { values.push(status); filters.push(`c.status = $${values.length}`); }
   if (segment) { values.push(segment); filters.push(`l.segment = $${values.length}`); }
+  const portugalRegions = ['%portugal%', '%lisboa%', '%braga%', '%viana do castelo%', '%alverca do ribatejo%', '%vila nova de famalicão%', '%vila pouca de aguiar%', '%santa maria da feira%', '%santarém%', '%telões%'];
+  const spainRegions = ['%españa%', '%espanha%', '%madrid%', '%barcelona%', '%valencia%', '%comunidad valenciana%', '%castilla%la mancha%', '%jaén%'];
+  if (market === 'pt') {
+    values.push(portugalRegions);
+    filters.push(`COALESCE(l.region, '') ILIKE ANY($${values.length}::text[])`);
+  } else if (market === 'es') {
+    values.push(spainRegions);
+    filters.push(`(lower(c.language) LIKE 'es-%' OR COALESCE(l.region, '') ILIKE ANY($${values.length}::text[]))`);
+  } else if (market === 'br') {
+    values.push(portugalRegions);
+    filters.push(`(lower(c.language) LIKE 'pt-%' AND NOT (COALESCE(l.region, '') ILIKE ANY($${values.length}::text[])))`);
+  }
   if (reviewStatus) {
     values.push(reviewStatus);
     filters.push(`COALESCE((

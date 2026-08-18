@@ -1932,6 +1932,31 @@
   }
 }
 
+/* Conversation filters · compact desktop rail, touch-friendly mobile grid */
+.filter-bar {
+  grid-template-columns: minmax(15rem, 1.45fr) repeat(3, minmax(9.25rem, 0.55fr));
+}
+
+@media (max-width: 70rem) {
+  .filter-bar {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .filter-bar .search-field {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 29.999rem) {
+  .filter-bar {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .filter-bar .search-field {
+    grid-column: auto;
+  }
+}
+
 /* Campaign dashboard · analytical curves and distribution ring */
 .app-view[data-area="campaigns"] {
   font-family: var(--font-interface);

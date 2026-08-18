@@ -34,6 +34,28 @@ test('painel abre o histórico pela rota compatível com a Vercel e identifica l
   assert.doesNotMatch(script, /api\(`\/api\/conversations\/\$\{encodeURIComponent\(id\)\}`\)/);
 });
 
+test('histórico filtra mercados no servidor e preserva busca compacta e responsiva', async () => {
+  const [html, script, server, database, styles] = await Promise.all([
+    readFile(new URL('../monitoring/public/index.html', import.meta.url), 'utf8'),
+    readFile(new URL('../monitoring/public/app.js', import.meta.url), 'utf8'),
+    readFile(new URL('../monitoring/server.mjs', import.meta.url), 'utf8'),
+    readFile(new URL('../monitoring/database.mjs', import.meta.url), 'utf8'),
+    readFile(new URL('../monitoring/public/campaigns.css', import.meta.url), 'utf8'),
+  ]);
+  assert.match(html, /id="conversation-market"/);
+  assert.match(html, /🇧🇷 Brasil/);
+  assert.match(html, /🇵🇹 Portugal/);
+  assert.match(html, /🇪🇸 Espanha/);
+  assert.match(script, /params\.set\('market', market\)/);
+  assert.match(script, /'conversation-market'/);
+  assert.match(server, /market: clean\(searchParams\.get\('market'\)/);
+  assert.match(database, /market === 'pt'/);
+  assert.match(database, /market === 'es'/);
+  assert.match(database, /market === 'br'/);
+  assert.match(database, /ILIKE ANY/);
+  assert.match(styles, /Conversation filters/);
+});
+
 test('fila de revisão é seletiva, exportável e acessível pelo sino', async () => {
   const [html, script, server, database] = await Promise.all([
     readFile(new URL('../monitoring/public/index.html', import.meta.url), 'utf8'),
