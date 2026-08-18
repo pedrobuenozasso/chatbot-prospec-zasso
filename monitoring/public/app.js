@@ -6,6 +6,8 @@ const state = {
   conversationLimit: 30,
   loginEmail: '',
   area: '',
+  campaignScreen: 'overview',
+  campaignData: null,
 };
 
 const byId = (id) => document.getElementById(id);
@@ -323,6 +325,109 @@ function campaignChart(rows = [], currency = 'BRL') {
   }).join('');
 }
 
+function campaignDualChart(rows = [], currency = 'BRL') {
+  if (!rows.length) return '<div class="empty-state">A Meta não retornou atividade diária no período.</div>';
+  const maximumSpend = Math.max(...rows.map((row) => Number(row.spend) || 0), 1);
+  const maximumResults = Math.max(...rows.map((row) => Number(row.results) || 0), 1);
+  const labelStep = rows.length <= 14 ? 1 : Math.ceil(rows.length / 10);
+  return rows.map((row, index) => {
+    const spendHeight = Math.max(2.5, ((Number(row.spend) || 0) / maximumSpend) * 100);
+    const resultHeight = Math.max(3, ((Number(row.results) || 0) / maximumResults) * 100);
+    const date = new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: '2-digit' }).format(new Date(`${row.date}T12:00:00Z`));
+    const title = `${date}: ${formatCurrency(row.spend, currency)} · ${formatNumber(row.results)} conversa(s)`;
+    const label = index % labelStep === 0 || index === rows.length - 1 ? date : '';
+    return `<div class="campaign-chart-day campaign-chart-day-dual" title="${escapeHtml(title)}"><div class="campaign-chart-plot"><div class="campaign-chart-bar" style="--bar-height:${spendHeight.toFixed(2)}" aria-label="${escapeHtml(title)}"></div><i class="campaign-result-dot" style="--result-height:${resultHeight.toFixed(2)}" aria-hidden="true"></i></div><span>${escapeHtml(label)}</span></div>`;
+  }).join('');
+}
+
+function campaignSpendDistribution(items = [], currency = 'BRL') {
+  const ranked = [...items].filter((item) => Number(item.metrics?.spend) > 0).sort((a, b) => Number(b.metrics?.spend) - Number(a.metrics?.spend)).slice(0, 5);
+  if (!ranked.length) return '<div class="empty-state">Nenhum investimento registrado neste período.</div>';
+  const total = items.reduce((sum, item) => sum + Number(item.metrics?.spend || 0), 0) || 1;
+  return ranked.map((item) => {
+    const spend = Number(item.metrics?.spend || 0);
+    const share = (spend / total) * 100;
+    return `<div class="campaign-distribution-item"><div><strong>${escapeHtml(item.name)}</strong><span>${escapeHtml(formatCurrency(spend, currency))} · ${escapeHtml(formatPercent(share))}</span></div><div class="campaign-distribution-track"><i style="--share:${share.toFixed(2)}" aria-hidden="true"></i></div></div>`;
+  }).join('');
+}
+
+function campaignFunnel(totals = {}) {
+  const rows = [
+    ['Impressões', totals.impressions], ['Alcance', totals.reach], ['Cliques', totals.clicks], ['Conversas', totals.results],
+  ];
+  const maximum = Math.max(Number(totals.impressions) || 0, 1);
+  return rows.map(([label, value]) => {
+    const width = Math.max(4, (Number(value) || 0) / maximum * 100);
+    return `<div class="campaign-funnel-step"><div><span>${escapeHtml(label)}</span><strong>${escapeHtml(formatNumber(value))}</strong></div><div class="campaign-funnel-track"><i style="--funnel-width:${width.toFixed(2)}" aria-hidden="true"></i></div></div>`;
+  }).join('');
+}
+
+function campaignHighlights(items = [], currency = 'BRL') {
+  if (!items.length) return '<div class="empty-state">Nenhuma campanha disponível para destacar.</div>';
+  const byResults = [...items].sort((a, b) => Number(b.metrics?.results) - Number(a.metrics?.results))[0];
+  const bySpend = [...items].sort((a, b) => Number(b.metrics?.spend) - Number(a.metrics?.spend))[0];
+  const byCtr = [...items].sort((a, b) => Number(b.metrics?.ctr) - Number(a.metrics?.ctr))[0];
+  const rows = [
+    ['Mais conversas', byResults, `${formatNumber(byResults.metrics?.results)} reportadas`],
+    ['Maior investimento', bySpend, formatCurrency(bySpend.metrics?.spend, currency)],
+    ['Maior CTR', byCtr, formatPercent(byCtr.metrics?.ctr)],
+  ];
+  return rows.map(([label, item, value]) => `<div class="campaign-highlight-item"><span>${escapeHtml(label)}</span><strong>${escapeHtml(item.name)}</strong><em>${escapeHtml(value)}</em></div>`).join('');
+}
+
+function setCampaignScreen(screen = 'overview') {
+  const selected = ['overview', 'performance', 'list'].includes(screen) ? screen : 'overview';
+  state.campaignScreen = selected;
+  document.querySelectorAll('.campaign-screen').forEach((element) => element.classList.toggle('hidden', element.id !== `campaign-screen-${selected}`));
+  document.querySelectorAll('[data-marketing-view]').forEach((element) => element.classList.toggle('active', element.dataset.marketingView === selected));
+  const titles = {
+    overview: ['MÍDIA E AQUISIÇÃO', 'Visão geral'],
+    performance: ['ANÁLISE DE RESULTADOS', 'Desempenho'],
+    list: ['GESTÃO DE MÍDIA', 'Campanhas'],
+  };
+  byId('page-eyebrow').textContent = titles[selected][0];
+  byId('page-title').textContent = titles[selected][1];
+  window.scrollTo({ top: 0, behavior: 'auto' });
+}
+
+function renderCampaignScreens(data, days) {
+  const totals = data.totals || {};
+  const currency = data.currency || 'BRL';
+  const campaigns = data.campaigns || [];
+  byId('campaign-overview-metrics').innerHTML = [
+    campaignMetric('Investimento', formatCurrency(totals.spend, currency), `${days} dias`),
+    campaignMetric('Conversas', formatNumber(totals.results), 'Atribuição Meta'),
+    campaignMetric('Custo por conversa', totals.costPerResult == null ? '—' : formatCurrency(totals.costPerResult, currency)),
+    campaignMetric('Campanhas ativas', formatNumber(totals.activeCampaigns), `${formatNumber(totals.campaignCount)} no filtro`),
+  ].join('');
+  byId('campaign-performance-metrics').innerHTML = [
+    campaignMetric('Alcance', formatNumber(totals.reach)),
+    campaignMetric('Impressões', formatNumber(totals.impressions)),
+    campaignMetric('Frequência', formatNumber(totals.frequency, 2)),
+    campaignMetric('Cliques', formatNumber(totals.clicks)),
+    campaignMetric('CTR', formatPercent(totals.ctr)),
+    campaignMetric('CPC', formatCurrency(totals.cpc, currency)),
+  ].join('');
+  byId('campaign-list-metrics').innerHTML = [
+    campaignMetric('Total no filtro', formatNumber(totals.campaignCount)),
+    campaignMetric('Ativas', formatNumber(totals.activeCampaigns)),
+    campaignMetric('Pausadas', formatNumber(campaigns.filter((item) => item.effectiveStatus === 'PAUSED').length)),
+    campaignMetric('Com problema', formatNumber(campaigns.filter((item) => item.effectiveStatus === 'WITH_ISSUES').length)),
+  ].join('');
+  const period = `${data.period.since} — ${data.period.until}`;
+  byId('campaign-period').textContent = period;
+  byId('campaign-overview-period').textContent = period;
+  byId('campaign-updated').textContent = `Atualizado ${new Intl.DateTimeFormat('pt-BR', { hour: '2-digit', minute: '2-digit' }).format(new Date(data.updatedAt))}${data.cached ? ' · cache' : ''}`;
+  byId('campaign-overview-chart').innerHTML = campaignChart(data.daily, currency);
+  byId('campaign-chart').innerHTML = campaignDualChart(data.daily, currency);
+  byId('campaign-spend-distribution').innerHTML = campaignSpendDistribution(campaigns, currency);
+  byId('campaign-highlights').innerHTML = campaignHighlights(campaigns, currency);
+  byId('campaign-funnel').innerHTML = campaignFunnel(totals);
+  byId('campaign-summary').innerHTML = `<div class="campaign-summary-list"><div class="campaign-summary-item"><span>Custo por conversa</span><strong>${totals.costPerResult == null ? '—' : escapeHtml(formatCurrency(totals.costPerResult, currency))}</strong></div><div class="campaign-summary-item"><span>CPC médio</span><strong>${escapeHtml(formatCurrency(totals.cpc, currency))}</strong></div><div class="campaign-summary-item"><span>CPM médio</span><strong>${escapeHtml(formatCurrency(totals.cpm, currency))}</strong></div></div>`;
+  const query = String(byId('campaign-search').value || '').trim().toLocaleLowerCase('pt-BR');
+  byId('campaign-table').innerHTML = campaignTable(query ? campaigns.filter((item) => String(item.name || '').toLocaleLowerCase('pt-BR').includes(query)) : campaigns, currency);
+}
+
 async function loadCampaigns() {
   const days = byId('campaign-days').value;
   const status = byId('campaign-status').value;
@@ -336,21 +441,9 @@ async function loadCampaigns() {
     byId('campaign-setup').innerHTML = '<h2>Conexão Meta pendente</h2><p>Cadastre o ID da conta e o token de leitura no ambiente protegido do painel. Nenhum dado de campanha é exposto no navegador.</p>';
     return;
   }
-  const totals = data.totals || {};
-  const currency = data.currency || 'BRL';
-  byId('campaign-metrics').innerHTML = [
-    campaignMetric('Investimento', formatCurrency(totals.spend, currency), `${days} dias`),
-    campaignMetric('Conversas reportadas', formatNumber(totals.results), 'Conforme atribuição Meta'),
-    campaignMetric('Campanhas ativas', formatNumber(totals.activeCampaigns), `${formatNumber(totals.campaignCount)} no filtro`),
-    campaignMetric('Alcance', formatNumber(totals.reach)),
-    campaignMetric('Impressões', formatNumber(totals.impressions)),
-    campaignMetric('CTR', formatPercent(totals.ctr)),
-  ].join('');
-  byId('campaign-period').textContent = `${data.period.since} — ${data.period.until}`;
-  byId('campaign-updated').textContent = `Atualizado ${new Intl.DateTimeFormat('pt-BR', { hour: '2-digit', minute: '2-digit' }).format(new Date(data.updatedAt))}${data.cached ? ' · cache' : ''}`;
-  byId('campaign-chart').innerHTML = campaignChart(data.daily, currency);
-  byId('campaign-summary').innerHTML = `<div class="campaign-summary-list"><div class="campaign-summary-item"><span>Custo por conversa</span><strong>${totals.costPerResult == null ? '—' : escapeHtml(formatCurrency(totals.costPerResult, currency))}</strong></div><div class="campaign-summary-item"><span>Frequência média</span><strong>${escapeHtml(formatNumber(totals.frequency, 2))}</strong></div><div class="campaign-summary-item"><span>CPC médio</span><strong>${escapeHtml(formatCurrency(totals.cpc, currency))}</strong></div><div class="campaign-summary-item"><span>CPM médio</span><strong>${escapeHtml(formatCurrency(totals.cpm, currency))}</strong></div></div>`;
-  byId('campaign-table').innerHTML = campaignTable(data.campaigns, currency);
+  state.campaignData = data;
+  renderCampaignScreens(data, days);
+  setCampaignScreen(state.campaignScreen);
 }
 
 const viewConfig = {
@@ -432,6 +525,7 @@ byId('portal-view').addEventListener('click', async (event) => {
   if (!area) return;
   area.dataset.state = 'loading';
   const selectedArea = area.dataset.area === 'campaigns' ? 'campaigns' : 'whatsapp';
+  if (selectedArea === 'campaigns') state.campaignScreen = 'overview';
   showApp(selectedArea);
   await navigate(selectedArea === 'campaigns' ? 'campaigns' : 'overview');
   delete area.dataset.state;
@@ -439,12 +533,11 @@ byId('portal-view').addEventListener('click', async (event) => {
 
 byId('main-nav').addEventListener('click', (event) => {
   if (event.target.closest('[data-portal]')) return showPortal();
-  const marketingButton = event.target.closest('[data-marketing-target]');
-  if (marketingButton) {
-    document.querySelectorAll('[data-marketing-target]').forEach((item) => item.classList.toggle('active', item === marketingButton));
-    const reveal = () => byId(marketingButton.dataset.marketingTarget)?.scrollIntoView({ block: 'start' });
-    if (state.view !== 'campaigns') navigate('campaigns').then(reveal);
-    else reveal();
+  const marketingView = event.target.closest('[data-marketing-view]');
+  if (marketingView) {
+    const screen = marketingView.dataset.marketingView;
+    if (state.view !== 'campaigns') navigate('campaigns').then(() => setCampaignScreen(screen));
+    else setCampaignScreen(screen);
     return;
   }
   const button = event.target.closest('[data-view]');
@@ -530,6 +623,9 @@ byId('conversation-search').addEventListener('input', () => {
 }));
 
 ['campaign-days', 'campaign-status'].forEach((id) => byId(id).addEventListener('change', () => navigate('campaigns')));
+byId('campaign-search').addEventListener('input', () => {
+  if (state.campaignData) renderCampaignScreens(state.campaignData, byId('campaign-days').value);
+});
 
 byId('refresh-button').addEventListener('click', () => navigate(state.view));
 byId('run-analysis').addEventListener('click', async () => {

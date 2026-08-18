@@ -1,4 +1,4 @@
-/* Hallmark · macrostructure: Index-First · pre-emit critique: P5 H5 E5 S5 R5 V5 · contrast: pass (40–41) · slop: pass (42–45) · honest: pass (46) · chrome: pass (47) · tokens: pass (48) · responsive/mobile: pass (30, 34, 49–57) */
+/* Hallmark · macrostructure: Workbench · tone: technical-austere · anchor hue: Zasso green · pre-emit critique: P5 H5 E5 S5 R5 V5 · contrast: pass (40–41) · responsive/mobile: pass (34, 49–57) · slop: pass */
 .portal-view {
   min-height: 100dvh;
   padding: max(var(--space-lg), env(safe-area-inset-top)) clamp(var(--space-md), 4vw, var(--space-2xl)) max(var(--space-lg), env(safe-area-inset-bottom));
@@ -930,5 +930,365 @@
   .campaign-toolbar,
   .campaign-panel > header {
     align-items: stretch;
+  }
+}
+
+@media (max-width: 21.999rem) {
+  .app-view[data-area="campaigns"] .nav-module {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .app-view[data-area="campaigns"] .nav-module .nav-item {
+    justify-content: flex-start;
+    padding-inline: var(--space-sm);
+  }
+}
+
+/* Marketing workbench — three focused screens */
+.campaign-screen {
+  min-width: 0;
+}
+
+.campaign-metrics-primary {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.campaign-overview-grid,
+.campaign-performance-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-md);
+}
+
+.campaign-panel-featured {
+  background: var(--color-ink);
+  color: var(--color-paper-raised);
+}
+
+.campaign-panel-featured header p,
+.campaign-panel-featured .campaign-period,
+.campaign-panel-featured .campaign-chart-day span {
+  color: var(--color-rule-strong);
+}
+
+.campaign-panel-featured .campaign-chart-bar {
+  background: var(--color-accent);
+}
+
+.campaign-chart-compact {
+  min-height: 15rem;
+}
+
+.campaign-distribution-list,
+.campaign-highlight-list,
+.campaign-funnel {
+  display: grid;
+  gap: var(--space-md);
+}
+
+.campaign-distribution-item {
+  display: grid;
+  gap: var(--space-xs);
+}
+
+.campaign-distribution-item > div:first-child {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+}
+
+.campaign-distribution-item strong {
+  min-width: 0;
+  overflow: hidden;
+  font-size: var(--text-sm);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.campaign-distribution-item span {
+  flex: none;
+  color: var(--color-muted);
+  font-size: var(--text-xs);
+  font-variant-numeric: tabular-nums;
+}
+
+.campaign-distribution-track,
+.campaign-funnel-track {
+  height: var(--space-xs);
+  overflow: clip;
+  border-radius: var(--radius-sm);
+  background: var(--color-paper-muted);
+}
+
+.campaign-distribution-track i,
+.campaign-funnel-track i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--color-accent);
+  transform-origin: left center;
+}
+
+.campaign-distribution-track i {
+  width: calc(var(--share) * 1%);
+}
+
+.campaign-highlight-list {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.campaign-highlight-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--space-2xs) var(--space-md);
+  padding-block: var(--space-sm);
+  border-bottom: var(--rule-thin) solid var(--color-rule);
+}
+
+.campaign-highlight-item:last-child {
+  border-bottom: 0;
+}
+
+.campaign-highlight-item span {
+  grid-column: 1 / -1;
+  color: var(--color-muted);
+  font-size: var(--text-xs);
+  font-weight: 750;
+}
+
+.campaign-highlight-item strong {
+  min-width: 0;
+  overflow: hidden;
+  font-size: var(--text-sm);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.campaign-highlight-item em {
+  color: var(--color-accent-strong);
+  font-size: var(--text-xs);
+  font-style: normal;
+  font-variant-numeric: tabular-nums;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.campaign-chart-legend {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  margin-bottom: var(--space-md);
+  color: var(--color-rule-strong);
+  font-size: var(--text-xs);
+}
+
+.campaign-chart-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  white-space: nowrap;
+}
+
+.campaign-chart-legend i {
+  display: block;
+  width: var(--space-sm);
+  height: var(--space-sm);
+  border-radius: var(--space-3xs);
+}
+
+.legend-spend {
+  background: var(--color-accent);
+}
+
+.legend-results {
+  border: var(--rule-thin) solid var(--color-paper-raised);
+  background: var(--color-meta);
+}
+
+.campaign-chart-day-dual {
+  grid-template-rows: 12rem auto;
+}
+
+.campaign-chart-plot {
+  position: relative;
+  height: 12rem;
+}
+
+.campaign-chart-plot .campaign-chart-bar {
+  position: absolute;
+  inset: auto var(--space-3xs) 0;
+  width: calc(100% - var(--space-2xs));
+}
+
+.campaign-result-dot {
+  position: absolute;
+  right: 50%;
+  bottom: calc(var(--result-height) * 1%);
+  width: var(--space-sm);
+  height: var(--space-sm);
+  border: var(--rule-thin) solid var(--color-paper-raised);
+  border-radius: 50%;
+  background: var(--color-meta);
+  transform: translate(50%, 50%);
+}
+
+.campaign-funnel-step {
+  display: grid;
+  gap: var(--space-xs);
+}
+
+.campaign-funnel-step > div:first-child {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+}
+
+.campaign-funnel-step span {
+  color: var(--color-muted);
+  font-size: var(--text-xs);
+  font-weight: 750;
+}
+
+.campaign-funnel-step strong {
+  font-size: var(--text-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+.campaign-funnel-track {
+  height: var(--space-sm);
+}
+
+.campaign-funnel-track i {
+  width: calc(var(--funnel-width) * 1%);
+  background: var(--color-meta);
+}
+
+.campaign-list-metrics {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.campaign-search {
+  display: grid;
+  gap: var(--space-2xs);
+  max-width: 28rem;
+  margin-bottom: var(--space-lg);
+  color: var(--color-muted);
+  font-size: var(--text-xs);
+  font-weight: 750;
+}
+
+.campaign-search input {
+  min-height: 2.75rem;
+  padding-inline: var(--space-sm);
+  border: var(--rule-thin) solid var(--color-rule);
+  outline: 2px solid transparent;
+  outline-offset: 1px;
+  border-radius: var(--radius-sm);
+  background: var(--color-paper-raised);
+  color: var(--color-ink-soft);
+}
+
+.campaign-search input:focus-visible {
+  outline-color: var(--color-focus);
+}
+
+.campaign-search input:active {
+  border-color: var(--color-ink-soft);
+}
+
+.campaign-search input:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.campaign-search input[aria-invalid="true"],
+.campaign-search input[data-state="error"] {
+  border-color: var(--color-danger);
+}
+
+.campaign-search input[data-state="success"] {
+  border-color: var(--color-accent-strong);
+}
+
+.campaign-search input[data-state="loading"] {
+  cursor: progress;
+  background: var(--color-paper-muted);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .campaign-search input:hover {
+    background: var(--color-paper-muted);
+  }
+}
+
+@media (min-width: 40rem) {
+  .campaign-highlight-list {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .campaign-highlight-item {
+    padding: 0 var(--space-lg) 0 0;
+    border-bottom: 0;
+    border-right: var(--rule-thin) solid var(--color-rule);
+  }
+
+  .campaign-highlight-item:last-child {
+    border-right: 0;
+  }
+}
+
+@media (min-width: 70rem) {
+  .campaign-overview-grid {
+    grid-template-columns: minmax(0, 1.7fr) minmax(18rem, 0.7fr);
+  }
+
+  .campaign-highlights {
+    grid-column: 1 / -1;
+  }
+
+  .campaign-performance-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .campaign-performance-grid .campaign-panel-featured {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 69.999rem) {
+  .campaign-metrics-primary,
+  .campaign-list-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 29.999rem) {
+  .campaign-metrics-primary,
+  .campaign-list-metrics {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .campaign-distribution-item > div:first-child {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: var(--space-2xs);
+  }
+
+  .campaign-highlight-item {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .campaign-highlight-item em {
+    white-space: normal;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .campaign-result-dot,
+  .campaign-distribution-track i,
+  .campaign-funnel-track i {
+    transform: none;
   }
 }

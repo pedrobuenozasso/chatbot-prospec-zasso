@@ -98,9 +98,9 @@
           </div>
           <div id="marketing-nav" class="nav-module hidden">
             <p class="nav-section-label">Marketing</p>
-            <button data-marketing-target="campaign-top" class="nav-item active"><span>⌁</span> Visão geral</button>
-            <button data-marketing-target="campaign-performance" class="nav-item"><span>↗</span> Desempenho</button>
-            <button data-marketing-target="campaign-list" class="nav-item"><span>◫</span> Campanhas</button>
+            <button data-marketing-view="overview" class="nav-item active"><span>⌁</span> Visão geral</button>
+            <button data-marketing-view="performance" class="nav-item"><span>↗</span> Desempenho</button>
+            <button data-marketing-view="list" class="nav-item"><span>◫</span> Campanhas</button>
           </div>
         </nav>
         <div class="sidebar-footer">
@@ -153,7 +153,7 @@
         </section>
 
         <section id="view-campaigns" class="view-section hidden">
-          <div id="campaign-top" class="campaign-toolbar section-anchor">
+          <div class="campaign-toolbar">
             <div class="campaign-context"><span class="meta-mark" aria-hidden="true">M</span><div><strong>Meta Ads</strong><span id="campaign-account">Conta de anúncios</span></div></div>
             <div class="campaign-filters">
               <label>Período<select id="campaign-days"><option value="7">7 dias</option><option value="14">14 dias</option><option value="30" selected>30 dias</option><option value="90">90 dias</option></select></label>
@@ -162,12 +162,28 @@
           </div>
           <div id="campaign-setup" class="campaign-setup hidden"></div>
           <div id="campaign-content">
-            <div id="campaign-metrics" class="campaign-metrics" aria-live="polite"></div>
-            <div id="campaign-performance" class="campaign-layout section-anchor">
-              <article class="campaign-panel campaign-trend"><header><div><h2>Evolução diária</h2><p>Investimento e resultados reportados pela Meta.</p></div><span id="campaign-period" class="campaign-period"></span></header><div id="campaign-chart" class="campaign-chart"></div></article>
-              <article class="campaign-panel campaign-summary"><header><div><h2>Leitura rápida</h2><p>Saúde do período selecionado.</p></div></header><div id="campaign-summary"></div></article>
-            </div>
-            <article id="campaign-list" class="campaign-panel campaign-table-panel section-anchor"><header><div><h2>Campanhas</h2><p>Dados consolidados por campanha.</p></div><span id="campaign-updated" class="campaign-period"></span></header><div id="campaign-table" class="table-wrap"></div></article>
+            <section id="campaign-screen-overview" class="campaign-screen" aria-label="Visão geral das campanhas">
+              <div id="campaign-overview-metrics" class="campaign-metrics campaign-metrics-primary" aria-live="polite"></div>
+              <div class="campaign-overview-grid">
+                <article class="campaign-panel campaign-trend campaign-panel-featured"><header><div><h2>Movimento do período</h2><p>Investimento diário e conversas reportadas.</p></div><span id="campaign-overview-period" class="campaign-period"></span></header><div id="campaign-overview-chart" class="campaign-chart campaign-chart-compact"></div></article>
+                <article class="campaign-panel campaign-distribution"><header><div><h2>Distribuição do investimento</h2><p>Participação das principais campanhas.</p></div></header><div id="campaign-spend-distribution" class="campaign-distribution-list"></div></article>
+                <article class="campaign-panel campaign-highlights"><header><div><h2>Destaques do período</h2><p>Leituras objetivas dos dados atuais.</p></div></header><div id="campaign-highlights" class="campaign-highlight-list"></div></article>
+              </div>
+            </section>
+
+            <section id="campaign-screen-performance" class="campaign-screen hidden" aria-label="Desempenho das campanhas">
+              <div id="campaign-performance-metrics" class="campaign-metrics" aria-live="polite"></div>
+              <div class="campaign-performance-grid">
+                <article class="campaign-panel campaign-trend campaign-panel-featured"><header><div><h2>Evolução diária</h2><p>Investimento e conversas ao longo do período.</p></div><span id="campaign-period" class="campaign-period"></span></header><div class="campaign-chart-legend"><span><i class="legend-spend"></i>Investimento</span><span><i class="legend-results"></i>Conversas</span></div><div id="campaign-chart" class="campaign-chart campaign-chart-dual"></div></article>
+                <article class="campaign-panel campaign-funnel-panel"><header><div><h2>Funil de mídia</h2><p>Da exposição até a conversa reportada.</p></div></header><div id="campaign-funnel" class="campaign-funnel"></div></article>
+                <article class="campaign-panel campaign-summary"><header><div><h2>Eficiência</h2><p>Custos médios do período selecionado.</p></div></header><div id="campaign-summary"></div></article>
+              </div>
+            </section>
+
+            <section id="campaign-screen-list" class="campaign-screen hidden" aria-label="Lista de campanhas">
+              <div id="campaign-list-metrics" class="campaign-metrics campaign-list-metrics" aria-live="polite"></div>
+              <article class="campaign-panel campaign-table-panel"><header><div><h2>Campanhas</h2><p>Dados consolidados para consulta operacional.</p></div><span id="campaign-updated" class="campaign-period"></span></header><label class="campaign-search"><span>Buscar campanha</span><input id="campaign-search" type="search" placeholder="Nome da campanha" autocomplete="off"></label><div id="campaign-table" class="table-wrap"></div></article>
+            </section>
           </div>
         </section>
 

@@ -97,9 +97,17 @@ test('central separa WhatsApp de campanhas e usa rota Meta compatível com a Ver
   ]);
   assert.match(html, /id="whatsapp-nav"/);
   assert.match(html, /id="marketing-nav"/);
-  assert.match(html, /data-marketing-target="campaign-performance"/);
+  assert.match(html, /data-marketing-view="overview"/);
+  assert.match(html, /data-marketing-view="performance"/);
+  assert.match(html, /data-marketing-view="list"/);
+  assert.match(html, /id="campaign-screen-overview"/);
+  assert.match(html, /id="campaign-screen-performance"/);
+  assert.match(html, /id="campaign-screen-list"/);
   assert.match(html, /Voltar à Central/);
   assert.match(script, /\/api\/meta-campaigns\?/);
   assert.match(server, /'\/api\/meta-campaigns'/);
   assert.match(script, /showApp\(selectedArea\)/);
+  assert.match(script, /function setCampaignScreen/);
+  assert.match(script, /function campaignFunnel/);
+  assert.match(script, /function campaignSpendDistribution/);
 });
