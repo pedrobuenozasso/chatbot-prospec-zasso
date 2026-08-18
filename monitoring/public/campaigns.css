@@ -122,8 +122,7 @@
   border-radius: var(--radius-lg);
   font-family: var(--font-body);
   isolation: isolate;
-  cursor: pointer;
-  transition: transform var(--dur-short) var(--ease-out), background-color var(--dur-short) var(--ease-out);
+  transition: border-color var(--dur-short) var(--ease-out), box-shadow var(--dur-short) var(--ease-out);
 }
 
 .area-card-whatsapp {
@@ -192,7 +191,7 @@
   z-index: var(--z-raised);
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: center;
   align-self: end;
   margin-top: var(--space-xl);
   padding-top: var(--space-md);
@@ -200,61 +199,44 @@
   font-size: var(--text-sm);
   font-weight: 800;
   white-space: nowrap;
+  cursor: pointer;
+  transition: transform var(--dur-short) var(--ease-out), background-color var(--dur-short) var(--ease-out), color var(--dur-short) var(--ease-out), box-shadow var(--dur-short) var(--ease-out);
 }
 
 .area-card-whatsapp .area-card-action {
   border-color: var(--color-ink-raised);
 }
 
-.area-card-action b {
-  font-size: var(--text-md);
-  font-weight: 500;
-  transition: transform var(--dur-short) var(--ease-out);
+.area-card-brand {
+  display: grid;
+  place-items: center;
+  width: 4.5rem;
+  height: 4.5rem;
+  border: var(--rule-thin) solid var(--color-ink-raised);
+  border-radius: var(--radius-md);
+  background: var(--color-accent);
+  color: var(--color-ink);
 }
 
-.area-card-signal {
-  position: absolute;
-  z-index: var(--z-base);
-  top: var(--space-xl);
-  right: var(--space-xl);
-  display: flex;
-  align-items: end;
-  gap: var(--space-2xs);
-  height: 3.5rem;
-  color: var(--color-accent);
+.area-card-brand-meta {
+  border-color: var(--color-rule);
+  background: var(--color-meta);
+  color: var(--color-paper-raised);
 }
 
-.area-card-signal i {
-  width: 0.3rem;
-  height: 30%;
-  border-radius: var(--radius-sm);
-  background: currentColor;
+.area-card-icon {
+  width: 2.35rem;
+  height: 2.35rem;
+  fill: currentColor;
 }
 
-.area-card-signal i:nth-child(2),
-.area-card-signal i:nth-child(4) { height: 68%; }
-.area-card-signal i:nth-child(3) { height: 100%; }
-
-.area-card-orbit {
-  position: absolute;
-  top: var(--space-xl);
-  right: var(--space-xl);
-  width: 4.25rem;
-  height: 4.25rem;
-  border: var(--rule-thin) solid var(--color-rule);
-  border-radius: 50%;
+.area-card-icon-whatsapp {
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.55;
 }
-
-.area-card-orbit::before,
-.area-card-orbit::after {
-  content: "";
-  position: absolute;
-  border: var(--rule-thin) solid var(--color-rule);
-  border-radius: 50%;
-}
-
-.area-card-orbit::before { inset: 0.65rem; }
-.area-card-orbit::after { inset: 1.35rem; background: var(--color-meta); border-color: var(--color-meta); }
 
 .portal-foot {
   margin-top: var(--space-xl);
@@ -534,31 +516,30 @@
 .campaign-status-active::before { background: var(--color-accent); }
 .campaign-status-with-issues::before { background: var(--color-danger); }
 
-.area-card:focus-visible,
+.area-card-button:focus-visible,
 .portal-logout:focus-visible,
 .campaign-filters select:focus-visible {
   outline: 2px solid var(--color-focus);
   outline-offset: 3px;
 }
 
-.area-card:active,
+.area-card-button:active,
 .portal-logout:active {
   transform: translateY(1px);
 }
 
-.area-card:disabled,
+.area-card-button:disabled,
 .portal-logout:disabled {
   cursor: not-allowed;
   opacity: 0.55;
 }
 
-.area-card[data-state="loading"] { cursor: wait; opacity: 0.72; }
-.area-card[data-state="error"] { border-color: var(--color-danger); }
-.area-card[data-state="success"] { border-color: var(--color-accent); }
+.area-card-button[data-state="loading"] { cursor: wait; opacity: 0.72; }
+.area-card-button[data-state="error"] { border-color: var(--color-danger); }
+.area-card-button[data-state="success"] { border-color: var(--color-accent); }
 
 @media (hover: hover) and (pointer: fine) {
-  .area-card:hover { transform: translateY(-2px); }
-  .area-card:hover .area-card-action b { transform: translateX(0.25rem); }
+  .area-card-button:hover { transform: translateY(-2px); }
   .portal-logout:hover { background: var(--color-paper-muted); }
   .campaign-filters select:hover { background: var(--color-paper-muted); }
 }
@@ -599,14 +580,13 @@
 }
 
 @media (pointer: coarse) {
-  .area-card,
+  .area-card-button,
   .portal-logout,
   .campaign-filters select { min-height: 3rem; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .area-card,
-  .area-card-action b,
+  .area-card-button,
   .portal-logout { transition-duration: 150ms; transform: none !important; }
 }
 
@@ -658,7 +638,6 @@
 }
 
 .area-card,
-.area-card-whatsapp,
 .area-card-meta {
   grid-template-columns: minmax(0, 1fr);
   gap: var(--space-lg);
@@ -667,6 +646,17 @@
   border-color: var(--color-rule);
   background: var(--color-paper-raised);
   color: var(--color-ink);
+  box-shadow: var(--shadow-whisper);
+}
+
+.area-card-whatsapp {
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-lg);
+  min-height: 0;
+  padding: var(--space-lg);
+  border-color: var(--color-ink);
+  background: var(--color-ink);
+  color: var(--color-paper-raised);
   box-shadow: var(--shadow-whisper);
 }
 
@@ -682,7 +672,9 @@
 }
 
 .area-card-whatsapp .area-card-number {
-  color: var(--color-ink-soft);
+  border-color: var(--color-ink-raised);
+  background: var(--color-ink-soft);
+  color: var(--color-paper-raised);
 }
 
 .area-card-copy {
@@ -690,9 +682,13 @@
 }
 
 .area-card-copy small,
+.area-card-meta .area-card-copy small {
+  color: var(--color-muted);
+}
+
 .area-card-whatsapp .area-card-copy small,
 .area-card-whatsapp .area-card-copy em {
-  color: var(--color-muted);
+  color: var(--color-rule-strong);
 }
 
 .area-card-copy strong {
@@ -707,18 +703,36 @@
 .area-card-action {
   align-self: center;
   margin-top: 0;
-  color: var(--color-accent-strong);
+  min-height: 3.25rem;
+  padding: var(--space-sm) var(--space-lg);
+  border: var(--rule-thin) solid var(--color-ink);
+  border-radius: var(--radius-sm);
+  background: var(--color-ink);
+  color: var(--color-paper-raised);
 }
 
 .area-card-whatsapp .area-card-action {
-  border-color: var(--color-rule);
+  border-color: var(--color-paper-raised);
+  background: var(--color-paper-raised);
+  color: var(--color-ink);
 }
 
-.area-card-signal,
-.area-card-orbit {
-  top: var(--space-lg);
-  right: var(--space-lg);
-  opacity: 0.7;
+.area-card-meta .area-card-brand {
+  box-shadow: var(--shadow-whisper);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .area-card-whatsapp .area-card-button:hover {
+    background: var(--color-accent);
+    border-color: var(--color-accent);
+    box-shadow: var(--shadow-whisper);
+  }
+
+  .area-card-meta .area-card-button:hover {
+    background: var(--color-meta);
+    border-color: var(--color-meta);
+    box-shadow: var(--shadow-whisper);
+  }
 }
 
 .portal-foot {
@@ -775,7 +789,7 @@
   }
 
   .area-card {
-    grid-template-columns: 8rem minmax(0, 1fr) minmax(11rem, auto);
+    grid-template-columns: 5rem 7rem minmax(0, 1fr) minmax(11rem, auto);
     align-items: center;
     min-height: 11.5rem;
     padding: var(--space-xl);
