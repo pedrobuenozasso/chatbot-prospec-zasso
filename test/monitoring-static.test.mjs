@@ -82,12 +82,13 @@ test('análise corrige tipagem do PostgreSQL e considera somente conversas marca
   assert.match(database, /latest_reviews r ON r\.conversation_key = c\.conversation_key AND r\.status = 'needs_action'/);
 });
 
-test('exemplo de produção restringe o painel aos dois e-mails autorizados', async () => {
+test('exemplo de produção restringe o painel aos três e-mails autorizados', async () => {
   const environment = await readFile(new URL('../.env.example', import.meta.url), 'utf8');
   const allowed = environment.match(/^MONITORING_ALLOWED_EMAILS=(.+)$/m)?.[1].split(',').sort();
   assert.deepEqual(allowed, [
     'pedro.bueno@zasso.com.br',
     'rodrigo.conilho@zasso.com.br',
+    'sergio.coutinho@zasso.com',
   ]);
 });
 

@@ -27,7 +27,7 @@ O painel não participa do caminho crítico das mensagens. Se ele estiver indisp
 | Revisor | Tudo do visualizador, mais revisão de conversas, análise e decisão sobre sugestões |
 | Administrador | Tudo do revisor, mais consulta e desativação de acessos |
 
-O ambiente atual aceita exclusivamente `pedro.bueno@zasso.com.br` e `rodrigo.conilho@zasso.com.br`. Não existe senha de login: cada nova autenticação exige um código enviado pelo SACF Mail Service para o e-mail autorizado.
+O ambiente atual aceita exclusivamente `pedro.bueno@zasso.com.br`, `rodrigo.conilho@zasso.com.br` e `sergio.coutinho@zasso.com`. Não existe senha de login: cada nova autenticação exige um código enviado pelo SACF Mail Service para o e-mail autorizado.
 
 ## Login por e-mail
 
@@ -83,7 +83,7 @@ No `.env` privado da VPS:
 MONITORING_PASSWORD_PEPPER=<openssl rand -hex 32>
 MONITORING_ENCRYPTION_KEY=<openssl rand -hex 32>
 MONITORING_REQUIRE_PROXY=false
-MONITORING_ALLOWED_EMAILS=pedro.bueno@zasso.com.br,rodrigo.conilho@zasso.com.br
+MONITORING_ALLOWED_EMAILS=pedro.bueno@zasso.com.br,rodrigo.conilho@zasso.com.br,sergio.coutinho@zasso.com
 MONITORING_ALLOWED_EMAIL_DOMAIN=zasso.com.br
 MONITORING_SESSION_HOURS=8
 MONITORING_EMAIL_LOGIN_ENABLED=true
