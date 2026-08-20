@@ -1,0 +1,150 @@
+{
+  "name": "Zasso | Lembrete de inatividade",
+  "active": false,
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## Lembrete único de inatividade\nA cada 5 minutos, reserva no máximo 25 conversas que estão há 60 minutos sem resposta. Envia uma única mensagem com os botões Sim/Não e registra o resultado. Não utiliza template porque o envio ocorre dentro da janela de atendimento iniciada pelo lead.\n\nReservas órfãs não são reenviadas automaticamente, evitando duplicidade.",
+        "height": 260,
+        "width": 460,
+        "color": 5
+      },
+      "id": "87bf7ac1-b4b0-4b8b-9f48-6c6d446fb101",
+      "name": "LEIA PRIMEIRO",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [-560, -300]
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [{ "field": "minutes", "minutesInterval": 5 }]
+        }
+      },
+      "id": "7afc120c-bd7a-47c6-922a-26c079915753",
+      "name": "A cada 5 minutos",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [-480, 80]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://zasso-chatbot:3000/v1/inactivity-reminders/claim",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": { "parameters": [{ "name": "content-type", "value": "application/json" }] },
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ JSON.stringify({ limit: 25 }) }}",
+        "options": { "timeout": 30000 }
+      },
+      "id": "a91914f6-461e-4544-94b7-cc2c471d82b6",
+      "name": "Reservar lembretes",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [-240, 80],
+      "credentials": {
+        "httpHeaderAuth": { "id": "HNulL8SMGX5OFlOY", "name": "Zasso Chatbot API" }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = Array.isArray($input.first().json.items) ? $input.first().json.items : [];\nreturn items\n  .filter((item) => item?.reminderId && item?.recipientNumber && item?.prompt && item?.continueId && item?.closeId)\n  .map((item) => ({ json: item }));"
+      },
+      "id": "035130ee-379a-44cc-aaf1-c29ef4e68d12",
+      "name": "Expandir lembretes",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [0, 80]
+    },
+    {
+      "parameters": { "batchSize": 1, "options": { "reset": false } },
+      "id": "4ed2f6b7-a21b-4120-9436-f977a58bb16b",
+      "name": "Um envio por vez",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [240, 80]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://graph.facebook.com/v25.0/1199510373253284/messages",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": { "parameters": [{ "name": "content-type", "value": "application/json" }] },
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ JSON.stringify({ messaging_product: 'whatsapp', recipient_type: 'individual', to: $json.recipientNumber, type: 'interactive', interactive: { type: 'button', body: { text: $json.prompt }, action: { buttons: [{ type: 'reply', reply: { id: $json.continueId, title: $json.continueLabel } }, { type: 'reply', reply: { id: $json.closeId, title: $json.closeLabel } }] } } }) }}",
+        "options": { "timeout": 30000 }
+      },
+      "onError": "continueRegularOutput",
+      "id": "41d8030d-e9d0-4617-abfc-71697415b54b",
+      "name": "Enviar botões pela Meta",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [480, 160],
+      "credentials": {
+        "httpHeaderAuth": { "id": "MetaZassoCTA2026", "name": "Zasso Meta Cloud API" }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const queued = $('Um envio por vez').item.json;\nconst response = $input.first().json.body ?? $input.first().json;\nconst metaMessageId = String(response.messages?.[0]?.id ?? '');\nconst rawCode = response.error?.code ?? response.error?.message ?? response.message ?? 'meta_send_failed';\nreturn [{ json: { reminderId: queued.reminderId, status: metaMessageId ? 'sent' : 'failed', metaMessageId, errorCode: metaMessageId ? '' : String(rawCode).slice(0, 120) } }];"
+      },
+      "id": "f3be8f86-3397-41a4-b843-4cb0eb193225",
+      "name": "Classificar resultado",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [720, 160]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://zasso-chatbot:3000/v1/inactivity-reminders/result",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": { "parameters": [{ "name": "content-type", "value": "application/json" }] },
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ JSON.stringify({ reminderId: $json.reminderId, status: $json.status, metaMessageId: $json.metaMessageId, errorCode: $json.errorCode }) }}",
+        "options": { "timeout": 30000 }
+      },
+      "id": "d05415d1-932f-403b-98b0-4954af325240",
+      "name": "Registrar resultado",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [960, 160],
+      "credentials": {
+        "httpHeaderAuth": { "id": "HNulL8SMGX5OFlOY", "name": "Zasso Chatbot API" }
+      }
+    },
+    {
+      "parameters": {},
+      "id": "f9a318ea-929a-420e-a729-4ea735f685fd",
+      "name": "Concluído",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [480, -40]
+    }
+  ],
+  "connections": {
+    "A cada 5 minutos": { "main": [[{ "node": "Reservar lembretes", "type": "main", "index": 0 }]] },
+    "Reservar lembretes": { "main": [[{ "node": "Expandir lembretes", "type": "main", "index": 0 }]] },
+    "Expandir lembretes": { "main": [[{ "node": "Um envio por vez", "type": "main", "index": 0 }]] },
+    "Um envio por vez": { "main": [[{ "node": "Concluído", "type": "main", "index": 0 }], [{ "node": "Enviar botões pela Meta", "type": "main", "index": 0 }]] },
+    "Enviar botões pela Meta": { "main": [[{ "node": "Classificar resultado", "type": "main", "index": 0 }]] },
+    "Classificar resultado": { "main": [[{ "node": "Registrar resultado", "type": "main", "index": 0 }]] },
+    "Registrar resultado": { "main": [[{ "node": "Um envio por vez", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1", "timezone": "America/Sao_Paulo", "saveManualExecutions": true },
+  "pinData": {},
+  "meta": { "templateCredsSetupCompleted": true },
+  "tags": []
+}

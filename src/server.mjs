@@ -5,11 +5,14 @@ import { config } from './config.mjs';
 import { migrateConversationState } from './conversation.mjs';
 import {
   closeDatabase,
+  claimDueInactivityReminders,
   claimDueWeekendHandoffs,
+  completeInactivityReminder,
   completeWeekendHandoff,
   databaseStatus,
   enforceRetentionPolicy,
   initializeDatabase,
+  inactivityReminderStatus,
   weekendHandoffStatus,
 } from './database.mjs';
 import { secureHandoffStorage } from './handoff.mjs';
@@ -91,17 +94,18 @@ export function validateApiPayload(body) {
   const text = eventType === 'call'
     ? '[incoming_call]'
     : cleanString(body.text, config.maxQuestionChars + 1);
+  const interactionId = cleanString(body.interactionId, 120);
   const firstName = cleanString(body.firstName, 80);
   const language = cleanString(body.language, 16) || 'pt-BR';
   const channel = cleanString(body.channel, 24) || 'whatsapp';
   const recipientNumber = cleanString(body.recipientNumber, 24).replace(/\D/g, '');
 
-  if (!['message', 'call'].includes(eventType)) {
+  if (!['message', 'call', 'interactive'].includes(eventType)) {
     const error = new Error('unsupported_event_type');
     error.statusCode = 400;
     throw error;
   }
-  if (!conversationId || !messageId || !text) {
+  if (!conversationId || !messageId || (eventType === 'interactive' ? !interactionId : !text)) {
     const error = new Error('missing_required_fields');
     error.statusCode = 400;
     throw error;
@@ -129,6 +133,7 @@ export function validateApiPayload(body) {
     language,
     channel,
     eventType,
+    ...(interactionId ? { interactionId } : {}),
     ...(recipientNumber ? { recipientNumber } : {}),
   };
 }
@@ -150,7 +155,7 @@ async function handle(request, response) {
     json(response, 200, {
       status: 'ok',
       service: 'zasso-chatbot',
-      version: '0.6.0',
+      version: '0.7.0',
       languages: SUPPORTED_LANGUAGES,
       persistence: databaseStatus(),
     });
@@ -162,6 +167,46 @@ async function handle(request, response) {
       return;
     }
     json(response, 200, await weekendHandoffStatus());
+    return;
+  }
+  if (request.method === 'GET' && url.pathname === '/v1/inactivity-reminders/status') {
+    if (!authorized(request)) {
+      json(response, 401, { error: 'unauthorized' });
+      return;
+    }
+    json(response, 200, await inactivityReminderStatus());
+    return;
+  }
+  if (request.method === 'POST' && url.pathname === '/v1/inactivity-reminders/claim') {
+    if (!authorized(request)) {
+      json(response, 401, { error: 'unauthorized' });
+      return;
+    }
+    if (!request.headers['content-type']?.toLocaleLowerCase().startsWith('application/json')) {
+      json(response, 415, { error: 'content_type_must_be_json' });
+      return;
+    }
+    const body = await readJsonBody(request);
+    json(response, 200, { items: await claimDueInactivityReminders(body.limit) });
+    return;
+  }
+  if (request.method === 'POST' && url.pathname === '/v1/inactivity-reminders/result') {
+    if (!authorized(request)) {
+      json(response, 401, { error: 'unauthorized' });
+      return;
+    }
+    if (!request.headers['content-type']?.toLocaleLowerCase().startsWith('application/json')) {
+      json(response, 415, { error: 'content_type_must_be_json' });
+      return;
+    }
+    const body = await readJsonBody(request);
+    const updated = await completeInactivityReminder({
+      reminderId: cleanString(body.reminderId, 20),
+      status: cleanString(body.status, 16),
+      metaMessageId: cleanString(body.metaMessageId, 220),
+      errorCode: cleanString(body.errorCode, 120),
+    });
+    json(response, updated ? 200 : 409, { updated });
     return;
   }
   if (request.method === 'POST' && url.pathname === '/v1/weekend-handoffs/claim') {
@@ -252,6 +297,12 @@ export async function startChatbotServer() {
     if (!/^[a-z0-9_]{3,120}$/.test(config.weekendHandoffTemplateName)) {
       throw new Error('WEEKEND_HANDOFF_TEMPLATE_NAME inválido.');
     }
+  }
+  if (config.inactivityReminderEnabled) {
+    if (!config.databaseEnabled || !config.databaseRequired) {
+      throw new Error('O lembrete de inatividade exige DATABASE_ENABLED=true e DATABASE_REQUIRED=true.');
+    }
+    validateWeekendEncryptionKey();
   }
   migrateConversationState();
   secureHandoffStorage();

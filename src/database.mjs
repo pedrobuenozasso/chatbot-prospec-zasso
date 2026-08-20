@@ -5,6 +5,7 @@ import pg from 'pg';
 import { config, projectRoot } from './config.mjs';
 import { conversationStorageKey } from './conversation.mjs';
 import { qualifiedLeadSummary } from './handoff.mjs';
+import { t } from './i18n.mjs';
 import { decryptWeekendRecipient, encryptWeekendRecipient } from './weekend-crypto.mjs';
 
 const { Pool } = pg;
@@ -129,7 +130,7 @@ export async function closeDatabase() {
 }
 
 export async function enforceRetentionPolicy() {
-  if (!ready) return { enabled: false, deletedMessages: 0, expiredConversations: 0 };
+  if (!ready) return { enabled: false, deletedMessages: 0, expiredConversations: 0, deletedInactivityReminders: 0 };
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
@@ -164,11 +165,18 @@ export async function enforceRetentionPolicy() {
          AND status <> 'expired'`,
       [config.conversationInactivityDays],
     );
+    const deletedInactivityReminders = await client.query(
+      `DELETE FROM chatbot_inactivity_reminders
+       WHERE status NOT IN ('queued', 'sending', 'sent')
+         AND updated_at < now() - ($1 * interval '1 day')`,
+      [config.messageRetentionDays],
+    );
     await client.query('COMMIT');
     return {
       enabled: true,
       deletedMessages: deletedMessages.rowCount || 0,
       expiredConversations: expiredConversations.rowCount || 0,
+      deletedInactivityReminders: deletedInactivityReminders.rowCount || 0,
     };
   } catch (error) {
     await client.query('ROLLBACK');
@@ -188,6 +196,9 @@ export async function loadConversationState(conversationId) {
 }
 
 function statusFor(state) {
+  if (state.stage === 'closed') {
+    return state.closureReason === 'inactivity_no_response' ? 'inactive_lost' : 'closed_by_lead';
+  }
   return state.stage === 'completed' ? 'qualified' : 'active';
 }
 
@@ -337,6 +348,42 @@ async function cancelPendingWeekendHandoffs(client, key, reason) {
   );
 }
 
+async function cancelOpenInactivityReminders(client, key, reason) {
+  await client.query(
+    `UPDATE chatbot_inactivity_reminders
+     SET status = 'cancelled', recipient_ciphertext = '', last_error_code = $2, updated_at = now()
+     WHERE conversation_key = $1 AND status IN ('queued', 'sending', 'sent')`,
+    [key, reason],
+  );
+}
+
+function shouldScheduleInactivityReminder(payload, result, state) {
+  return config.inactivityReminderEnabled
+    && payload.channel === 'whatsapp'
+    && Boolean(payload.recipientNumber)
+    && payload.eventType !== 'call'
+    && !result.duplicate
+    && !result.reset
+    && Array.isArray(result.messages)
+    && result.messages.length > 0
+    && ['segment', 'region', 'agro_crop', 'agro_area', 'urban_profile'].includes(state.stage);
+}
+
+async function scheduleInactivityReminder(client, key, payload, state) {
+  await client.query(
+    `INSERT INTO chatbot_inactivity_reminders
+      (conversation_key, recipient_ciphertext, language, pending_stage, scheduled_for, status, updated_at)
+     VALUES ($1, $2, $3, $4, now() + ($5 * interval '1 minute'), 'queued', now())`,
+    [
+      key,
+      encryptWeekendRecipient(payload.recipientNumber),
+      state.language || 'pt-BR',
+      state.stage,
+      config.inactivityReminderMinutes,
+    ],
+  );
+}
+
 export async function persistConversationState(conversationId, state, channel = 'whatsapp') {
   if (!ready) return false;
   const client = await pool.connect();
@@ -361,6 +408,13 @@ export async function persistInteraction(payload, result, state) {
   try {
     await client.query('BEGIN');
     const key = await upsertConversation(client, payload.conversationId, state, payload.channel || 'whatsapp');
+    if (result.inactivityDecision !== 'stale') {
+      await cancelOpenInactivityReminders(
+        client,
+        key,
+        result.inactivityDecision ? `lead_${result.inactivityDecision}` : 'lead_replied',
+      );
+    }
     await upsertLead(client, key, state, result.qualified || state.stage === 'completed');
     await upsertHandoff(client, key, state);
     await upsertWeekendHandoff(client, key, payload, state);
@@ -396,6 +450,9 @@ export async function persistInteraction(payload, result, state) {
         },
       );
     }
+    if (shouldScheduleInactivityReminder(payload, result, state)) {
+      await scheduleInactivityReminder(client, key, payload, state);
+    }
     await client.query('COMMIT');
     return true;
   } catch (error) {
@@ -404,6 +461,167 @@ export async function persistInteraction(payload, result, state) {
   } finally {
     client.release();
   }
+}
+
+export async function acceptInactivityDecision({ conversationId, reminderId, decision }) {
+  if (!ready) throw new Error('PostgreSQL indisponível para confirmar o lembrete de inatividade.');
+  if (!['continue', 'close'].includes(decision)) return false;
+  if (!/^\d{1,19}$/.test(String(reminderId || ''))) return false;
+  const result = await pool.query(
+    `UPDATE chatbot_inactivity_reminders
+     SET status = $3::text,
+         recipient_ciphertext = '',
+         responded_at = now(),
+         updated_at = now()
+     WHERE id = $1::bigint
+       AND conversation_key = $2
+       AND status = 'sent'
+     RETURNING id`,
+    [
+      String(reminderId),
+      conversationStorageKey(conversationId),
+      decision === 'continue' ? 'continued' : 'closed',
+    ],
+  );
+  return result.rowCount === 1;
+}
+
+async function expireSilentInactivityReminders(client) {
+  const expired = await client.query(
+    `UPDATE chatbot_inactivity_reminders
+     SET status = 'expired', recipient_ciphertext = '', last_error_code = 'no_response', updated_at = now()
+     WHERE status IN ('queued', 'sent')
+       AND scheduled_for <= now() - ($1 * interval '1 hour')
+     RETURNING conversation_key`,
+    [config.inactivityAutoCloseHours],
+  );
+  const keys = [...new Set(expired.rows.map((row) => row.conversation_key))];
+  if (!keys.length) return 0;
+  await client.query(
+    `UPDATE chatbot_conversations
+     SET stage = 'closed',
+         status = 'inactive_lost',
+         state = jsonb_set(
+           jsonb_set(
+             jsonb_set(state, '{stage}', to_jsonb('closed'::text), true),
+             '{closureReason}', to_jsonb('inactivity_no_response'::text), true
+           ),
+           '{closedAt}', to_jsonb(now()::text), true
+         ),
+         updated_at = now()
+     WHERE conversation_key = ANY($1::char(64)[])
+       AND stage NOT IN ('completed', 'closed')`,
+    [keys],
+  );
+  return keys.length;
+}
+
+export async function claimDueInactivityReminders(limit = config.inactivityReminderClaimLimit) {
+  if (!config.inactivityReminderEnabled) return [];
+  if (!ready) throw new Error('PostgreSQL indisponível para a fila de inatividade.');
+  const requested = Math.min(Math.max(Number(limit) || 1, 1), config.inactivityReminderClaimLimit);
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    await client.query(
+      `UPDATE chatbot_inactivity_reminders
+       SET status = 'failed', recipient_ciphertext = '', last_error_code = 'claim_timeout_manual_review', updated_at = now()
+       WHERE status = 'sending'
+         AND claimed_at <= now() - interval '20 minutes'`,
+    );
+    await expireSilentInactivityReminders(client);
+    const selected = await client.query(
+      `SELECT id, recipient_ciphertext, language, pending_stage, scheduled_for
+       FROM chatbot_inactivity_reminders
+       WHERE status = 'queued' AND scheduled_for <= now()
+       ORDER BY scheduled_for, id
+       LIMIT $1
+       FOR UPDATE SKIP LOCKED`,
+      [requested],
+    );
+    const ids = selected.rows.map((row) => row.id);
+    if (ids.length) {
+      await client.query(
+        `UPDATE chatbot_inactivity_reminders
+         SET status = 'sending', attempts = attempts + 1, claimed_at = now(), updated_at = now()
+         WHERE id = ANY($1::bigint[])`,
+        [ids],
+      );
+    }
+    await client.query('COMMIT');
+    return selected.rows.map((row) => ({
+      reminderId: String(row.id),
+      recipientNumber: decryptWeekendRecipient(row.recipient_ciphertext),
+      language: row.language,
+      pendingStage: row.pending_stage,
+      scheduledFor: row.scheduled_for,
+      prompt: t(row.language, 'inactivityPrompt'),
+      continueLabel: t(row.language, 'inactivityContinueButton'),
+      closeLabel: t(row.language, 'inactivityCloseButton'),
+      continueId: `zasso_inactivity:continue:${row.id}`,
+      closeId: `zasso_inactivity:close:${row.id}`,
+    }));
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+export async function completeInactivityReminder({ reminderId, status, metaMessageId = '', errorCode = '' }) {
+  if (!ready) throw new Error('PostgreSQL indisponível para a fila de inatividade.');
+  if (!/^\d{1,19}$/.test(String(reminderId || ''))) throw new Error('Identificador de lembrete inválido.');
+  if (!['sent', 'failed'].includes(status)) throw new Error('Resultado de envio inválido.');
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const result = await client.query(
+      `UPDATE chatbot_inactivity_reminders
+       SET status = $2::text,
+           recipient_ciphertext = '',
+           meta_message_id = NULLIF($3, ''),
+           last_error_code = NULLIF($4, ''),
+           sent_at = CASE WHEN $2::text = 'sent' THEN now() ELSE sent_at END,
+           updated_at = now()
+       WHERE id = $1::bigint AND status = 'sending'
+       RETURNING id, conversation_key, language`,
+      [String(reminderId), status, String(metaMessageId).slice(0, 220), String(errorCode).slice(0, 120)],
+    );
+    if (result.rowCount && status === 'sent') {
+      const row = result.rows[0];
+      await insertMessage(
+        client,
+        row.conversation_key,
+        `inactivity-reminder:${reminderId}:${metaMessageId || 'sent'}`,
+        'outbound',
+        t(row.language, 'inactivityPrompt'),
+        row.language,
+        { kind: 'inactivity_reminder', reminderId: String(reminderId) },
+      );
+    }
+    await client.query('COMMIT');
+    return result.rowCount === 1;
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+export async function inactivityReminderStatus() {
+  if (!ready) return { enabled: false, counts: {} };
+  const result = await pool.query(
+    `SELECT status, count(*)::integer AS total
+     FROM chatbot_inactivity_reminders GROUP BY status ORDER BY status`,
+  );
+  return {
+    enabled: config.inactivityReminderEnabled,
+    reminderMinutes: config.inactivityReminderMinutes,
+    autoCloseHours: config.inactivityAutoCloseHours,
+    counts: Object.fromEntries(result.rows.map((row) => [row.status, row.total])),
+  };
 }
 
 export async function claimDueWeekendHandoffs(limit = config.weekendHandoffClaimLimit) {

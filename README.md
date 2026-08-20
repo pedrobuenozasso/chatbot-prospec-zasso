@@ -89,6 +89,9 @@ envia as respostas pela Evolution. Nenhuma chave é armazenada no workflow.
 O plano do piloto para qualificar leads na sexta e no sábado e encaminhá-los no
 domingo está em [WEEKEND_HANDOFF_PILOT.md](docs/WEEKEND_HANDOFF_PILOT.md).
 
+O lembrete único depois de 60 minutos sem resposta, com botões para continuar
+ou encerrar, está em [INACTIVITY_REMINDER.md](docs/INACTIVITY_REMINDER.md).
+
 ## Qualificação comercial
 
 Após o primeiro atendimento, o MVP coleta o perfil do lead de forma

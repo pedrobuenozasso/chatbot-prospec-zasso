@@ -13,6 +13,7 @@ const STAGES = Object.freeze({
   AGRO_AREA: 'agro_area',
   URBAN_PROFILE: 'urban_profile',
   COMPLETED: 'completed',
+  CLOSED: 'closed',
 });
 
 function normalize(value) {
@@ -98,6 +99,8 @@ function sanitizedState(state) {
       .map(([stage, attempts]) => [stage, Math.max(0, Math.min(attempts, 3))]),
   );
   state.qualification ||= {};
+  state.closureReason = String(state.closureReason || '').slice(0, 64) || undefined;
+  state.closedAt = state.closedAt || undefined;
   state.qualification.areaConfidence = state.qualification.areaConfidence || null;
   state.qualification.urbanScale = String(state.qualification.urbanScale || '')
     .replace(/[\p{Cc}\p{Cf}\p{Zl}\p{Zp}]+/gu, ' ')

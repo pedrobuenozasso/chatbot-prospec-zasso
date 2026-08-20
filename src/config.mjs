@@ -87,6 +87,10 @@ export const config = {
   weekendHandoffTemplateName: process.env.WEEKEND_HANDOFF_TEMPLATE_NAME
     || 'zasso_continuar_atendimento_fds',
   weekendHandoffClaimLimit: positiveIntegerEnvironment('WEEKEND_HANDOFF_CLAIM_LIMIT', 25, 1, 100),
+  inactivityReminderEnabled: booleanEnvironment('INACTIVITY_REMINDER_ENABLED'),
+  inactivityReminderMinutes: positiveIntegerEnvironment('INACTIVITY_REMINDER_MINUTES', 60, 5, 1440),
+  inactivityAutoCloseHours: positiveIntegerEnvironment('INACTIVITY_AUTO_CLOSE_HOURS', 24, 1, 168),
+  inactivityReminderClaimLimit: positiveIntegerEnvironment('INACTIVITY_REMINDER_CLAIM_LIMIT', 25, 1, 100),
   chatbotApiHost: process.env.CHATBOT_API_HOST || '127.0.0.1',
   chatbotApiPort: Number(process.env.CHATBOT_API_PORT || '3000'),
   chatbotApiToken: process.env.CHATBOT_API_TOKEN || '',

@@ -9,6 +9,7 @@ import {
 } from './conversation.mjs';
 import {
   databaseStatus,
+  acceptInactivityDecision,
   loadConversationState,
   persistConversationState,
   persistInteraction,
@@ -64,7 +65,21 @@ async function reconcileConversation(payload) {
 
 export async function processInboundPersisted(payload) {
   await reconcileConversation(payload);
-  const result = await processInboundMessage(payload);
+  let inactivityDecisionAccepted = false;
+  if (payload.eventType === 'interactive') {
+    const match = /^zasso_inactivity:(continue|close):(\d{1,19})$/.exec(payload.interactionId || '');
+    if (match) {
+      inactivityDecisionAccepted = Boolean(await withDatabaseFallback(
+        () => acceptInactivityDecision({
+          conversationId: payload.conversationId,
+          decision: match[1],
+          reminderId: match[2],
+        }),
+        'inactivity_decision_error',
+      ));
+    }
+  }
+  const result = await processInboundMessage({ ...payload, inactivityDecisionAccepted });
   const state = getConversation(payload.conversationId, {
     firstName: payload.firstName,
     language: result.language,

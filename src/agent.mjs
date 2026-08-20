@@ -236,6 +236,8 @@ export async function processInboundMessage({
   firstName = '',
   language = 'pt-BR',
   eventType = 'message',
+  interactionId = '',
+  inactivityDecisionAccepted = false,
   channel = 'whatsapp',
   now = new Date(),
 }) {
@@ -256,6 +258,36 @@ export async function processInboundMessage({
     return { duplicate: true, messages: [], language: state.language, stage: state.stage, handoffStatus: state.handoffStatus };
   }
 
+  if (eventType === 'interactive') {
+    const decision = /^zasso_inactivity:(continue|close):\d{1,19}$/.exec(interactionId)?.[1];
+    if (!decision || !inactivityDecisionAccepted) {
+      saveProgress(conversationId, state, messageId);
+      recordEvent('stale_inactivity_action_ignored', {
+        conversationFingerprint: identifierFingerprint(conversationId),
+      });
+      return response(state, [], { inactivityDecision: 'stale' });
+    }
+    if (decision === 'close') {
+      state.stage = STAGES.CLOSED;
+      state.closureReason = 'lead_declined_inactivity';
+      state.closedAt = new Date(now).toISOString();
+      saveProgress(conversationId, state, messageId);
+      recordEvent('conversation_closed_by_lead', {
+        conversationFingerprint: identifierFingerprint(conversationId),
+      });
+      return response(state, [t(state.language, 'inactivityClosed')], { inactivityDecision: 'close' });
+    }
+    saveProgress(conversationId, state, messageId);
+    recordEvent('conversation_continued_after_inactivity', {
+      conversationFingerprint: identifierFingerprint(conversationId),
+      stage: state.stage,
+    });
+    return response(state, [
+      t(state.language, 'inactivityContinued'),
+      qualificationQuestion(state.stage, state.language),
+    ], { inactivityDecision: 'continue' });
+  }
+
   if (eventType === 'call') {
     saveProgress(conversationId, state, messageId);
     recordEvent('incoming_call_redirected_to_text', {
@@ -272,6 +304,12 @@ export async function processInboundMessage({
     rememberMessage(state, messageId);
     saveConversation(conversationId, state);
     return response(state, [`${t(resetLanguage, 'welcome')}\n\n${t(resetLanguage, 'reset')}`], { reset: true });
+  }
+  if (state.stage === STAGES.CLOSED) {
+    const reopenLanguage = state.language || languageHint;
+    resetConversation(conversationId);
+    state = getConversation(conversationId, { firstName, language: reopenLanguage });
+    captureWeekendCampaignEntry(state, { text: cleanedText, channel, now });
   }
   if (state.stage === STAGES.COMPLETED) {
     if (STOP_COMMANDS.test(command) && ['weekend_queued', 'weekend_template_sent'].includes(state.handoffStatus)) {

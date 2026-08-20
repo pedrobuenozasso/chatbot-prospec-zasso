@@ -14,6 +14,7 @@ const byId = (id) => document.getElementById(id);
 const roleLevel = { viewer: 1, reviewer: 2, admin: 3 };
 const labels = {
   active: 'Em atendimento', qualified: 'Qualificada', expired: 'Expirada',
+  closed_by_lead: 'Encerrada pelo lead', inactive_lost: 'Perdida por inatividade',
   agro: 'Agro', urban: 'Urbano', other: 'Outro', completed: 'Concluída',
   pending: 'Pendente', reviewed: 'Revisada', needs_action: 'Precisa de ação', resolved: 'Resolvida',
   suggested: 'Sugerida', accepted: 'Aceita', rejected: 'Rejeitada', published: 'Publicada',
@@ -50,7 +51,7 @@ function friendly(value) {
 
 function badge(value) {
   const tone = ['healthy', 'qualified', 'completed', 'accepted', 'resolved', 'correct', 'active'].includes(value)
-    ? 'green' : ['down', 'failed', 'possible_leak', 'rejected', 'needs_action'].includes(value) ? 'red' : 'amber';
+    ? 'green' : ['down', 'failed', 'possible_leak', 'rejected', 'needs_action', 'inactive_lost'].includes(value) ? 'red' : 'amber';
   return `<span class="badge ${tone}">${escapeHtml(friendly(value))}</span>`;
 }
 
