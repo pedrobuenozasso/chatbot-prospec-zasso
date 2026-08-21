@@ -9,11 +9,13 @@ process.env.CONVERSATION_STATE_PATH = join(temporaryDirectory, 'conversations.js
 process.env.HANDOFF_OUTBOX_PATH = join(temporaryDirectory, 'handoffs.jsonl');
 process.env.WEEKEND_HANDOFF_ENABLED = 'false';
 
-const { processInboundMessage } = await import('../src/agent.mjs');
+const { processInboundMessage: processInboundMessageAtRuntime } = await import('../src/agent.mjs');
 const { advanceQualification, getConversation, newConversation, restoreConversation, STAGES } = await import('../src/conversation.mjs');
 const { parseAreaAnswer } = await import('../src/area.mjs');
 const { qualifiedLeadSummary } = await import('../src/handoff.mjs');
 const { localQualificationAssessment } = await import('../src/rag.mjs');
+const normalBusinessHours = new Date('2026-08-18T12:00:00-03:00');
+const processInboundMessage = (payload) => processInboundMessageAtRuntime({ now: normalBusinessHours, ...payload });
 
 test.after(() => rmSync(temporaryDirectory, { recursive: true, force: true }));
 
@@ -124,8 +126,8 @@ test('mensagem genérica de campanha recebe contexto útil antes da pergunta de 
     language: 'pt-BR',
   });
   assert.equal(result.stage, STAGES.SEGMENT);
-  assert.match(result.messages[0], /controle el[eé]trico|aplica[cç][oõ]es agr[ií]colas/i);
-  assert.match(result.messages[1], /agroneg[oó]cio|urbana/i);
+  assert.match(result.messages[0], /pioneiros em Capina Elétrica/i);
+  assert.match(result.messages[1], /sobre qual segmento/i);
 });
 
 test('região portuguesa muda o vocabulário para PT-PT sem alterar o fluxo', () => {
@@ -182,7 +184,7 @@ test('gate final impede handoff com área sem unidade e baixa confiança', async
   assert.doesNotMatch(result.messages.join('\n'), /wa\.me\//i);
 });
 
-test('sexta-feira bloqueia CTA mesmo com o antigo piloto de domingo desligado', async () => {
+test('sexta-feira após 17h bloqueia CTA mesmo com o antigo piloto de domingo desligado', async () => {
   const conversationId = 'review:friday-hard-block';
   const state = newConversation({ language: 'es-ES' });
   state.stage = STAGES.AGRO_AREA;
@@ -197,9 +199,31 @@ test('sexta-feira bloqueia CTA mesmo com o antigo piloto de domingo desligado', 
     text: '420 hc aproximadamente',
     language: 'es-ES',
     channel: 'whatsapp',
-    now: new Date('2026-08-14T15:00:00-03:00'),
+    now: new Date('2026-08-14T17:00:00-03:00'),
   });
   assert.equal(result.qualified, true);
   assert.equal(result.handoffStatus, 'weekend_deferred');
   assert.doesNotMatch(result.messages.join('\n'), /wa\.me\//i);
+});
+
+test('sexta-feira antes das 17h mantém o encaminhamento comercial normal', async () => {
+  const conversationId = 'review:friday-before-cutoff';
+  const state = newConversation({ language: 'pt-BR' });
+  state.stage = STAGES.AGRO_AREA;
+  state.qualification.segment = 'agro';
+  state.qualification.region = 'Campinas/SP';
+  state.qualification.crop = 'Café';
+  restoreConversation(conversationId, state);
+
+  const result = await processInboundMessage({
+    conversationId,
+    messageId: 'friday-before-1',
+    text: '20 hectares',
+    language: 'pt-BR',
+    channel: 'whatsapp',
+    now: new Date('2026-08-14T16:59:59-03:00'),
+  });
+  assert.equal(result.qualified, true);
+  assert.equal(result.handoffStatus, 'queued');
+  assert.match(result.messages.join('\n'), /wa\.me\//i);
 });

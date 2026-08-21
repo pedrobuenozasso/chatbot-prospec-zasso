@@ -18,9 +18,14 @@ test('reconhece somente variações inofensivas da mensagem configurada no anún
   assert.equal(matchesWeekendCampaignMessage('Posso ter informações?'), false);
 });
 
-test('bloqueia o CTA comercial na sexta e no sábado independentemente do idioma', () => {
+test('bloqueia o CTA a partir de sexta às 17h e durante o sábado', () => {
+  assert.equal(shouldDeferCommercialHandoff({
+    channel: 'whatsapp',
+    now: new Date('2026-08-14T16:59:59-03:00'),
+    enabled: true,
+  }), false);
   for (const now of [
-    new Date('2026-08-14T16:30:00-03:00'),
+    new Date('2026-08-14T17:00:00-03:00'),
     new Date('2026-08-15T16:30:00-03:00'),
   ]) {
     assert.equal(shouldDeferCommercialHandoff({ channel: 'whatsapp', now, enabled: true }), true);
@@ -37,8 +42,9 @@ test('bloqueia o CTA comercial na sexta e no sábado independentemente do idioma
   }), false);
 });
 
-test('marca somente a primeira mensagem de WhatsApp recebida na sexta ou sábado', () => {
-  const friday = new Date('2026-08-14T12:00:00-03:00');
+test('marca somente a primeira mensagem de WhatsApp dentro da janela do fim de semana', () => {
+  const friday = new Date('2026-08-14T17:00:00-03:00');
+  const fridayBeforeCutoff = new Date('2026-08-14T16:59:59-03:00');
   const saturday = new Date('2026-08-15T12:00:00-03:00');
   const thursday = new Date('2026-08-13T12:00:00-03:00');
 
@@ -58,6 +64,14 @@ test('marca somente a primeira mensagem de WhatsApp recebida na sexta ou sábado
     text: 'Olá! Posso ter mais informações sobre isso?',
     channel: 'whatsapp',
     now: thursday,
+    enabled: true,
+  }), false);
+
+  const beforeCutoffState = newConversation();
+  assert.equal(captureWeekendCampaignEntry(beforeCutoffState, {
+    text: 'Olá! Posso ter mais informações sobre isso?',
+    channel: 'whatsapp',
+    now: fridayBeforeCutoff,
     enabled: true,
   }), false);
 

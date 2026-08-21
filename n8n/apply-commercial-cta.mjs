@@ -42,6 +42,13 @@ const ctaCopy = {
     label: 'Hablar con el equipo'
   }
 };
+const segmentCopy = {
+  pt: { agro: '🌾 Agro', urban: '🏙️ Área urbana' },
+  en: { agro: '🌾 Agriculture', urban: '🏙️ Urban area' },
+  de: { agro: '🌾 Landwirtschaft', urban: '🏙️ Stadtbereich' },
+  fr: { agro: '🌾 Agriculture', urban: '🏙️ Zone urbaine' },
+  es: { agro: '🌾 Agricultura', urban: '🏙️ Área urbana' }
+};
 const commercialPrefix = 'https://wa.me/${COMMERCIAL_WHATSAPP_NUMBER}?text=';
 
 function commercialUrlFrom(text) {
@@ -73,9 +80,24 @@ return result.messages
         instance: inbound.instance,
         number: inbound.number,
         messageType: 'commercial_cta',
+        interactionKind: 'commercial_cta',
         text: ctaCopy[languageKey].body,
         ctaLabel: ctaCopy[languageKey].label,
         ctaUrl,
+        delay: 4000,
+        order: index
+      } };
+    }
+    const isSegmentPrompt = result.stage === 'segment' && index === result.messages.length - 1;
+    if (isSegmentPrompt) {
+      return { json: {
+        instance: inbound.instance,
+        number: inbound.number,
+        messageType: 'commercial_cta',
+        interactionKind: 'segment',
+        text: text.slice(0, 1024),
+        segmentAgroLabel: segmentCopy[languageKey].agro,
+        segmentUrbanLabel: segmentCopy[languageKey].urban,
         delay: 4000,
         order: index
       } };
@@ -161,7 +183,7 @@ export function applyCommercialCta(workflow, {
       sendBody: true,
       contentType: 'raw',
       rawContentType: 'application/json',
-      body: "={{ JSON.stringify({ messaging_product: 'whatsapp', recipient_type: 'individual', to: $json.number, type: 'interactive', interactive: { type: 'cta_url', body: { text: $json.text }, action: { name: 'cta_url', parameters: { display_text: $json.ctaLabel, url: $json.ctaUrl } } } }) }}",
+      body: "={{ JSON.stringify({ messaging_product: 'whatsapp', recipient_type: 'individual', to: $json.number, type: 'interactive', interactive: $json.interactionKind === 'segment' ? { type: 'button', body: { text: $json.text }, action: { buttons: [{ type: 'reply', reply: { id: 'zasso_segment:agro', title: $json.segmentAgroLabel } }, { type: 'reply', reply: { id: 'zasso_segment:urban', title: $json.segmentUrbanLabel } }] } } : { type: 'cta_url', body: { text: $json.text }, action: { name: 'cta_url', parameters: { display_text: $json.ctaLabel, url: $json.ctaUrl } } } }) }}",
       options: { timeout: 30000 },
     },
     id: '996f16cf-a93f-4d04-b49d-ff12dc6f020b',

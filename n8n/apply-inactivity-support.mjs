@@ -45,6 +45,42 @@ const text = String(
 ).trim();
 if ((!text && !isInactivityAction) || !key.id) return [];`;
 
+const interactiveMessageParsing = `const message = data.message ?? {};
+const unwrapped = message.ephemeralMessage?.message ?? message.viewOnceMessage?.message ?? message;
+let nativeReply = {};
+try {
+  nativeReply = JSON.parse(unwrapped.interactiveResponseMessage?.nativeFlowResponseMessage?.paramsJson ?? '{}');
+} catch {
+  nativeReply = {};
+}
+const interactionId = String(
+  unwrapped.buttonsResponseMessage?.selectedButtonId ??
+  unwrapped.templateButtonReplyMessage?.selectedId ??
+  nativeReply.id ??
+  ''
+).trim();
+const interactionTitle = String(
+  unwrapped.buttonsResponseMessage?.selectedDisplayText ??
+  unwrapped.templateButtonReplyMessage?.selectedDisplayText ??
+  nativeReply.title ??
+  ''
+).trim();
+const isInactivityAction = /^zasso_inactivity:(?:continue|close):\\d{1,19}$/.test(interactionId);
+const isSegmentAction = /^zasso_segment:(?:agro|urban)$/.test(interactionId);
+const segmentAnswer = interactionId === 'zasso_segment:agro' ? 'Agro' : 'Área urbana';
+const text = String(
+  isSegmentAction ? segmentAnswer : (
+    isInactivityAction ? interactionTitle : (
+      unwrapped.conversation ??
+      unwrapped.extendedTextMessage?.text ??
+      unwrapped.imageMessage?.caption ??
+      unwrapped.videoMessage?.caption ??
+      ''
+    )
+  )
+).trim();
+if ((!text && !isInactivityAction && !isSegmentAction) || !key.id) return [];`;
+
 function requiredNode(workflow, name) {
   const node = workflow.nodes.find((candidate) => candidate.name === name);
   if (!node) throw new Error(`Node obrigatório ausente: ${name}`);
@@ -57,17 +93,22 @@ export function applyInactivitySupport(workflow) {
   const chatbot = requiredNode(updated, 'Consultar Chatbot Zasso');
   let code = String(normalizer.parameters.jsCode || '');
 
-  if (!code.includes('isInactivityAction')) {
+  if (code.includes(inactivityMessageParsing) && !code.includes('isSegmentAction')) {
+    code = code.replace(inactivityMessageParsing, interactiveMessageParsing);
+  } else if (!code.includes('isInactivityAction')) {
     if (!code.includes(originalMessageParsing)) {
       throw new Error('Bloco de normalização de mensagens não reconhecido; nenhuma alteração foi aplicada.');
     }
     code = code
-      .replace(originalMessageParsing, inactivityMessageParsing)
+      .replace(originalMessageParsing, interactiveMessageParsing)
       .replace("    eventType: 'message',", "    eventType: isInactivityAction ? 'interactive' : 'message',")
       .replace('    text\n  }\n}];', "    text,\n    ...(isInactivityAction ? { interactionId } : {})\n  }\n}];");
   }
   if (!code.includes("eventType: isInactivityAction ? 'interactive' : 'message'")) {
     throw new Error('O normalizador não encaminha a interação como evento interativo.');
+  }
+  if (!code.includes('isSegmentAction') || !code.includes("zasso_segment:agro")) {
+    throw new Error('O normalizador não reconhece os botões de segmento.');
   }
   normalizer.parameters.jsCode = code;
 

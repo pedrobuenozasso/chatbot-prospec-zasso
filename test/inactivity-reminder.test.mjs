@@ -81,6 +81,18 @@ test('workflow de entrada reconhece clique, encaminha o ID e preserva mensagens 
   assert.equal(ordinary.json.eventType, 'message');
   assert.equal(ordinary.json.text, 'Olá');
   assert.equal(ordinary.json.interactionId, undefined);
+
+  base.body.data.key.id = 'segment-1';
+  base.body.data.message = {
+    buttonsResponseMessage: {
+      selectedButtonId: 'zasso_segment:agro',
+      selectedDisplayText: '🌾 Agro',
+    },
+  };
+  const [segment] = runNormalizer(base);
+  assert.equal(segment.json.eventType, 'message');
+  assert.equal(segment.json.text, 'Agro');
+  assert.equal(segment.json.interactionId, undefined);
 });
 
 test('mensagem e botões estão localizados e respeitam o limite da Meta', () => {
@@ -89,6 +101,8 @@ test('mensagem e botões estão localizados e respeitam o limite da Meta', () =>
     assert.ok(t(language, 'inactivityContinueButton').length <= 20);
     assert.ok(t(language, 'inactivityCloseButton').length <= 20);
     assert.ok(t(language, 'inactivityClosed').length >= 40);
+    assert.ok(t(language, 'segmentAgroButton').length <= 20);
+    assert.ok(t(language, 'segmentUrbanButton').length <= 20);
   }
 });
 
@@ -129,7 +143,7 @@ test('Sim retoma a pergunta pendente e Não encerra sem novos disparos', async (
   assert.equal(continued.inactivityDecision, 'continue');
   assert.equal(continued.stage, 'segment');
   assert.match(continued.messages.join(' '), /vamos continuar/i);
-  assert.match(continued.messages.join(' '), /agronegócio|área urbana/i);
+  assert.match(continued.messages.join(' '), /segmento deseja receber informações/i);
 
   const closeConversation = 'whatsapp:inactivity:close';
   await processInboundMessage({

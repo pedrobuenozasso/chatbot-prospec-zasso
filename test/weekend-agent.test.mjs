@@ -88,7 +88,7 @@ test('resposta ao template libera o CTA e um pedido de parada cancela a fila', a
   assert.match(stopped.messages[0], /Cancelei/i);
 });
 
-test('sexta e sábado nunca expõem o CTA comercial nos cinco idiomas', async () => {
+test('após sexta às 17h e no sábado nunca expõe o CTA comercial nos cinco idiomas', async () => {
   for (const [index, language] of ['pt-BR', 'en-US', 'de-DE', 'fr-FR', 'es-ES'].entries()) {
     const conversationId = `whatsapp:weekend:deferred:${language}`;
     restoreConversation(conversationId, unmarkedQualifiedAgroState(language));
@@ -98,7 +98,7 @@ test('sexta e sábado nunca expõem o CTA comercial nos cinco idiomas', async ()
       text: '20',
       language,
       channel: 'whatsapp',
-      now: new Date(index % 2 ? '2026-08-15T16:33:00-03:00' : '2026-08-14T16:33:00-03:00'),
+      now: new Date(index % 2 ? '2026-08-15T16:33:00-03:00' : '2026-08-14T17:33:00-03:00'),
     });
     assert.equal(result.qualified, true);
     assert.equal(result.handoffStatus, 'weekend_deferred');

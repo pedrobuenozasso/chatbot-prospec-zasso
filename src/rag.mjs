@@ -474,6 +474,16 @@ export function isPromptInjection(text) {
 
 function smallTalkResponse(question, language) {
   const normalized = normalizedSecurityText(question);
+  const aiDisclosurePatterns = {
+    'pt-BR': /^(?:e|isso e|voce e|estou falando com|estou sendo atendid[oa] por) (?:uma )?(?:ia|inteligencia artificial|robo|bot)$/,
+    'pt-PT': /^(?:e|isto e|voce e|estou a falar com|estou a ser atendid[oa] por) (?:uma )?(?:ia|inteligencia artificial|robo|bot)$/,
+    'en-US': /^(?:is this|are you|am i talking to|am i being assisted by) (?:an? )?(?:ai|artificial intelligence|robot|bot)$/,
+    'de-DE': /^(?:ist das|sind sie|spreche ich mit) (?:eine[mr]? )?(?:ki|kunstliche intelligenz|roboter|bot)$/,
+    'fr-FR': /^(?:est ce|etes vous|je parle a) (?:une? )?(?:ia|intelligence artificielle|robot|bot)$/,
+    'es-ES': /^(?:es|esto es|eres|estoy hablando con|me atiende) (?:una? )?(?:ia|inteligencia artificial|robot|bot)$/,
+  };
+  const locale = normalizeLanguage(language);
+  if (aiDisclosurePatterns[locale]?.test(normalized)) return t(locale, 'aiDisclosure');
   const groups = {
     'pt-BR': {
       small: ['oi', 'ola', 'bom dia', 'boa tarde', 'boa noite', 'tudo bem', 'como ta', 'como esta', 'como vai', 'quem e voce', 'ajuda'],
@@ -501,7 +511,7 @@ function smallTalkResponse(question, language) {
       wellbeing: /^(hola|buenos dias|buenas tardes|buenas noches) (como estas|que tal)$/,
     },
   };
-  const group = groups[normalizeLanguage(language)];
+  const group = groups[locale];
   if (group.thanks.includes(normalized)) return t(language, 'thanks');
   if (!group.small.includes(normalized) && !group.wellbeing.test(normalized)) return null;
   return t(language, 'smallTalk');

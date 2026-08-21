@@ -2,16 +2,17 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { applyCommercialCta } from '../n8n/apply-commercial-cta.mjs';
 
-const workflow = JSON.parse(
+const workflow = applyCommercialCta(JSON.parse(
   readFileSync(join(process.cwd(), 'n8n/evolution-whatsapp-zasso.json'), 'utf8'),
-);
+));
 const normalizer = workflow.nodes.find((node) => node.name === 'Normalizar e Filtrar Evento');
 const runNormalizer = new Function('$json', normalizer.parameters.jsCode);
 const preparer = workflow.nodes.find((node) => node.name === 'Preparar Respostas');
 const runPreparer = new Function('$', '$json', preparer.parameters.jsCode);
 
-function prepareMessages(messages, language = 'pt-BR') {
+function prepareMessages(messages, language = 'pt-BR', stage = 'completed') {
   const inbound = {
     instance: 'zasso-oficial',
     number: '5519999999999',
@@ -21,7 +22,7 @@ function prepareMessages(messages, language = 'pt-BR') {
     assert.equal(name, 'Normalizar e Filtrar Evento');
     return { first: () => ({ json: inbound }) };
   };
-  return runPreparer(nodeLookup, { messages, language });
+  return runPreparer(nodeLookup, { messages, language, stage });
 }
 
 function payload(overrides = {}) {
@@ -122,11 +123,35 @@ test('localiza texto e rótulo do CTA em todos os idiomas suportados', () => {
   }
 });
 
+test('transforma a pergunta de segmento em dois reply buttons localizados', () => {
+  const expectations = new Map([
+    ['pt-BR', ['🌾 Agro', '🏙️ Área urbana']],
+    ['en', ['🌾 Agriculture', '🏙️ Urban area']],
+    ['de', ['🌾 Landwirtschaft', '🏙️ Stadtbereich']],
+    ['fr', ['🌾 Agriculture', '🏙️ Zone urbaine']],
+    ['es', ['🌾 Agricultura', '🏙️ Área urbana']],
+  ]);
+  for (const [language, labels] of expectations) {
+    const results = prepareMessages(['Resposta de conteúdo', 'Escolha o segmento'], language, 'segment');
+    assert.equal(results[0].json.messageType, 'text');
+    assert.equal(results[1].json.messageType, 'commercial_cta');
+    assert.equal(results[1].json.interactionKind, 'segment');
+    assert.deepEqual(
+      [results[1].json.segmentAgroLabel, results[1].json.segmentUrbanLabel],
+      labels,
+    );
+    assert.ok(labels.every((label) => label.length <= 20));
+  }
+});
+
 test('node da Meta usa credencial referenciada e payload cta_url sem token embutido', () => {
   const node = workflow.nodes.find((candidate) => candidate.name === 'Enviar CTA pela Meta');
   assert.equal(node.credentials.httpHeaderAuth.name, 'Zasso Meta Cloud API');
   assert.match(node.parameters.url, /^https:\/\/graph\.facebook\.com\/v25\.0\/\d+\/messages$/);
   assert.match(node.parameters.body, /type: 'cta_url'/);
+  assert.match(node.parameters.body, /zasso_segment:agro/);
+  assert.match(node.parameters.body, /zasso_segment:urban/);
+  assert.match(node.parameters.body, /type: 'button'/);
   assert.match(node.parameters.body, /display_text: \$json\.ctaLabel/);
   assert.doesNotMatch(JSON.stringify(node.parameters), /EA[A-Za-z0-9]{30,}/);
 });

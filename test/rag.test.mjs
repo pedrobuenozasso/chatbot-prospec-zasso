@@ -46,14 +46,14 @@ test('entende uma saudação natural com pergunta de bem-estar', async () => {
   const result = await answer('Olá, tudo bem?');
   assert.equal(result.confident, true);
   assert.equal(result.sources.length, 0);
-  assert.match(result.answer, /tudo bem por aqui/i);
+  assert.match(result.answer, /Agradecemos seu contato com a Zasso/i);
 });
 
 test('detecta inglês e responde a uma saudação no mesmo idioma', async () => {
   assert.equal(detectLanguage('How does electrical weeding work?'), 'en-US');
   const result = await answer('Hello, how are you?');
   assert.equal(result.confident, true);
-  assert.match(result.answer, /I’m doing well/i);
+  assert.match(result.answer, /Thank you for contacting Zasso/i);
 });
 
 test('detecta os cinco idiomas suportados', () => {
@@ -71,11 +71,11 @@ test('detecta os cinco idiomas suportados', () => {
 
 test('responde a saudações nos cinco idiomas sem consultar o Worker', async () => {
   const greetings = [
-    ['Oi', 'pt-BR', /Tudo bem por aqui/i],
-    ['Hello', 'en-US', /I’m doing well/i],
-    ['Hallo', 'de-DE', /Mir geht es gut/i],
-    ['Bonjour', 'fr-FR', /Je vais bien/i],
-    ['Hola', 'es-ES', /Todo bien por aquí/i],
+    ['Oi', 'pt-BR', /Agradecemos seu contato/i],
+    ['Hello', 'en-US', /Thank you for contacting/i],
+    ['Hallo', 'de-DE', /Vielen Dank für Ihre Kontaktaufnahme/i],
+    ['Bonjour', 'fr-FR', /Merci d’avoir contacté/i],
+    ['Hola', 'es-ES', /Gracias por contactar/i],
   ];
   for (const [question, language, expected] of greetings) {
     const result = await answer(question);

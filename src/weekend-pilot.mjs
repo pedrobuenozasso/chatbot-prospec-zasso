@@ -27,16 +27,31 @@ export function localWeekday(now = new Date(), timezone = config.weekendHandoffT
     .toLocaleLowerCase('en-US');
 }
 
+export function isCommercialWeekendWindow(
+  now = new Date(),
+  timezone = config.weekendHandoffTimezone,
+) {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    weekday: 'short',
+    hour: '2-digit',
+    hourCycle: 'h23',
+    timeZone: timezone,
+  }).formatToParts(now);
+  const weekday = parts.find((part) => part.type === 'weekday')?.value?.toLocaleLowerCase('en-US');
+  const hour = Number(parts.find((part) => part.type === 'hour')?.value);
+  return weekday === 'sat' || (weekday === 'fri' && Number.isFinite(hour) && hour >= 17);
+}
+
 export function shouldDeferCommercialHandoff({
   channel = 'whatsapp',
   now = new Date(),
-  // O bloqueio de sexta/sábado é uma regra de segurança operacional e não
+  // O bloqueio após sexta às 17h e durante o sábado é uma regra de segurança operacional e não
   // depende da flag do piloto de template de domingo.
   enabled = true,
 } = {}) {
   return enabled
     && channel === 'whatsapp'
-    && ['fri', 'sat'].includes(localWeekday(now));
+    && isCommercialWeekendWindow(now);
 }
 
 export function captureWeekendCampaignEntry(state, {
@@ -47,7 +62,7 @@ export function captureWeekendCampaignEntry(state, {
 } = {}) {
   if (!enabled || channel !== 'whatsapp' || state.stage !== 'new') return false;
   if (state.entrySource?.type && state.entrySource.type !== 'unknown') return false;
-  if (!['fri', 'sat'].includes(localWeekday(now))) return false;
+  if (!isCommercialWeekendWindow(now)) return false;
   if (!matchesWeekendCampaignMessage(text)) return false;
 
   state.entrySource = {

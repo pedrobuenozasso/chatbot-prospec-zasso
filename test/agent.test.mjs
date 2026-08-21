@@ -9,9 +9,11 @@ process.env.CONVERSATION_STATE_PATH = join(temporaryDirectory, 'conversations.js
 process.env.HANDOFF_OUTBOX_PATH = join(temporaryDirectory, 'qualified-leads.jsonl');
 process.env.CHATBOT_API_TOKEN = 'test-token-with-at-least-thirty-two-characters';
 
-const { processInboundMessage } = await import('../src/agent.mjs');
+const { processInboundMessage: processInboundMessageAtRuntime } = await import('../src/agent.mjs');
 const { isValidBearerAuthorization, validateApiPayload } = await import('../src/server.mjs');
 const { newConversation, restoreConversation } = await import('../src/conversation.mjs');
+const normalBusinessHours = new Date('2026-08-18T12:00:00-03:00');
+const processInboundMessage = (payload) => processInboundMessageAtRuntime({ now: normalBusinessHours, ...payload });
 
 test.after(() => rmSync(temporaryDirectory, { recursive: true, force: true }));
 
@@ -26,6 +28,9 @@ test('núcleo independente de canal qualifica, deduplica e não reinicia após h
   });
   assert.equal(result.stage, 'segment');
   assert.equal(result.messages.length, 2);
+  assert.match(result.messages[0], /Agradecemos seu contato com a Zasso/);
+  assert.match(result.messages[0], /pioneiros em Capina Elétrica/);
+  assert.match(result.messages[1], /sobre qual segmento deseja receber informações/);
 
   result = await processInboundMessage({
     conversationId,
@@ -71,6 +76,29 @@ test('núcleo independente de canal qualifica, deduplica e não reinicia após h
   result = await processInboundMessage({ conversationId, messageId: 'message-9', text: '/reset', firstName: 'Ana' });
   assert.equal(result.reset, true);
   assert.equal(result.stage, 'new');
+});
+
+test('explica com transparência o uso de IA e retoma a pergunta pendente', async () => {
+  const conversationId = 'whatsapp:test:ai-disclosure';
+  let result = await processInboundMessage({
+    conversationId,
+    messageId: 'ai-1',
+    text: 'Olá',
+    language: 'pt-BR',
+  });
+  assert.equal(result.stage, 'segment');
+
+  result = await processInboundMessage({
+    conversationId,
+    messageId: 'ai-2',
+    text: 'É IA?',
+    language: 'pt-BR',
+  });
+  assert.equal(result.stage, 'segment');
+  assert.equal(result.messages.length, 2);
+  assert.match(result.messages[0], /atendido por nossa IA/i);
+  assert.match(result.messages[0], /atendimento humanizado/i);
+  assert.match(result.messages[1], /sobre qual segmento/i);
 });
 
 test('conclui a triagem quando o lead informa hectares dentro de uma frase natural', async () => {
